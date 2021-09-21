@@ -1,0 +1,54 @@
+name: justobjects
+on:
+  - push
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: checkout
+      - uses: actions/setup-python@v2
+        name: setup
+        with:
+          python-version: 3.9
+      - name: install dependencies
+        run: python -m pip install tox
+      - name: run pre-commit
+        run: python -m tox -e pre-commit
+  test:
+    strategy:
+      matrix:
+        python:
+          - 3.6
+          - 3.7
+          - 3.8
+          - 3.9
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: setup
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: install
+        run: |
+          python -m pip install tox
+      - name: run tests
+        run: python -m tox -e py --cov-report xml
+  release:
+    needs: [pre-commit, test]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: install dependencies
+        run: python -m pip install tox
+      - name: release
+        run: tox -e release
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
