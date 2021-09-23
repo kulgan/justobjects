@@ -55,14 +55,26 @@ class SchemaMixin:
 
 
 @attr.s(auto_attribs=True)
+class RefType(SchemaMixin):
+    ref: str
+    description: Optional[str] = None
+
+
+@attr.s(auto_attribs=True)
 class BasicType(SchemaMixin):
     type: SchemaType
     description: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
+class BooleanType(BasicType):
+    type: SchemaType = attr.ib(default="boolean", init=False)
+    default: Optional[bool] = None
+
+
+@attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    type: SchemaType = "number"
+    type: SchemaType = attr.ib(default="number", init=False)
     default: Optional[int] = None
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
@@ -72,9 +84,13 @@ class NumericType(BasicType):
     exclusive_minimum: Optional[int] = None
 
 
+class IntegerType(NumericType):
+    type: SchemaType = attr.ib(default="integer", init=False)
+
+
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    type: SchemaType = "string"
+    type: SchemaType = attr.ib(default="string", init=False)
     default: Optional[str] = None
     enum: Iterable[str] = attr.ib(factory=list)
     max_length: Optional[int] = None
@@ -84,9 +100,10 @@ class StringType(BasicType):
 
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
-    type: SchemaType = "object"
+    type: SchemaType = attr.ib(default="object", init=False)
     additional_properties: bool = False
     required: List[str] = attr.ib(factory=list)
+    definitions: Dict[str, BasicType] = attr.ib(factory=dict)
     properties: Dict[str, BasicType] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
@@ -96,8 +113,10 @@ class ObjectType(BasicType):
 
 
 def get_type(cls: Optional[Type] = None) -> BasicType:
-    if cls == str:
+    if cls in (str, StringType):
         return StringType()
-    if cls == int:
+    if cls in (float, NumericType):
         return NumericType()
+    if cls in (int, IntegerType):
+        return IntegerType()
     raise ValueError(f"Unknown type {cls} specified")

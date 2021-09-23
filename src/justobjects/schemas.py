@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, Union, Iterable
 
 from jsonschema import Draft7Validator
 
@@ -21,12 +21,25 @@ def show(cls: Type) -> Dict:
     return obj.json_schema()
 
 
-def validate(node: Any) -> None:
-    schema = show(node.__class__)
-    val = Draft7Validator(schema=schema)
-    for e in val.iter_errors(node.__dict__):
+def parse_errors(validator: Draft7Validator, data: Dict) -> None:
+    for e in validator.iter_errors(data):
         str_path = ".".join([str(entry) for entry in e.path])
         print(str_path, e.message)
+
+
+def validate_raw(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
+    schema = show(cls)
+    validator = Draft7Validator(schema=schema)
+
+    if isinstance(data, dict):
+        parse_errors(validator, data)
+    else:
+        for entry in data:
+            parse_errors(validator, entry)
+
+
+def validate(node: Any) -> None:
+    validate_raw(node.__class__, node.__dict__)
 
 
 JUST_OBJECTS: Dict[str, BasicType] = {}
