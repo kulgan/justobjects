@@ -21,37 +21,39 @@ def camel_case(snake_case: str) -> str:
 
 class SchemaMixin:
     def json_schema(self) -> Dict[str, Any]:
-        return self.parse(self.__dict__)
+        return parse_dict(self.__dict__)
 
-    def parse(self, val: Mapping[str, Any]) -> Dict[str, Any]:
-        parsed = {}
-        for k, v in val.items():
-            if k.startswith("__"):
-                # skip private properties
-                continue
-            # skip None values
-            if v is None:
-                continue
-            # map ref
-            if k == "ref":
-                k = "$ref"
-            k = camel_case(k)
-            dict_val = self._to_dict(v)
-            if dict_val:
-                parsed[k] = dict_val
-        return parsed
 
-    def _to_dict(self, val: Any) -> Any:
-        if isinstance(val, SchemaMixin):
-            return val.json_schema()
-        if isinstance(val, (list, set, tuple)):
-            return [self._to_dict(v) for v in val]
-        if isinstance(val, collections.Mapping):
-            return self.parse(val)
-        if hasattr(val, "__dict__"):
-            return self.parse(val.__dict__)
+def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
+    parsed = {}
+    for k, v in val.items():
+        if k.startswith("__"):
+            # skip private properties
+            continue
+        # skip None values
+        if v is None:
+            continue
+        # map ref
+        if k == "ref":
+            k = "$ref"
+        k = camel_case(k)
+        dict_val = value_to_dict(v)
+        if dict_val:
+            parsed[k] = dict_val
+    return parsed
 
-        return val
+
+def value_to_dict(val: Any) -> Any:
+    if isinstance(val, SchemaMixin):
+        return val.json_schema()
+    if isinstance(val, (list, set, tuple)):
+        return [value_to_dict(v) for v in val]
+    if isinstance(val, collections.Mapping):
+        return parse_dict(val)
+    if hasattr(val, "__dict__"):
+        return parse_dict(val.__dict__)
+
+    return val
 
 
 @attr.s(auto_attribs=True)

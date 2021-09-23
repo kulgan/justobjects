@@ -1,8 +1,21 @@
-from typing import Any, Dict, Type, Union, Iterable
+from typing import Any, Dict, Iterable, List, Type, Union
 
+import attr
 from jsonschema import Draft7Validator
 
-from justobjects.jsontypes import BasicType
+from justobjects.jsontypes import BasicType, value_to_dict
+
+
+@attr.s(frozen=True, auto_attribs=True)
+class ValidationError:
+    element: str
+    message: str
+
+
+class ValidationException(Exception):
+    def __init__(self, errors: List[ValidationError]):
+        super(ValidationException, self).__init__("Validation errors occurred")
+        self.errors = errors
 
 
 def add(cls: Any, obj: BasicType) -> None:
@@ -21,25 +34,30 @@ def show(cls: Type) -> Dict:
     return obj.json_schema()
 
 
-def parse_errors(validator: Draft7Validator, data: Dict) -> None:
+def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:
+    errors: List[ValidationError] = []
     for e in validator.iter_errors(data):
         str_path = ".".join([str(entry) for entry in e.path])
-        print(str_path, e.message)
+        errors.append(ValidationError(str_path, e.message))
+    return errors
 
 
 def validate_raw(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
     schema = show(cls)
     validator = Draft7Validator(schema=schema)
 
+    errors: List[ValidationError] = []
     if isinstance(data, dict):
-        parse_errors(validator, data)
+        errors += parse_errors(validator, data)
     else:
         for entry in data:
-            parse_errors(validator, entry)
+            errors += parse_errors(validator, entry)
+    if errors:
+        raise ValidationException(errors=errors)
 
 
 def validate(node: Any) -> None:
-    validate_raw(node.__class__, node.__dict__)
+    validate_raw(node.__class__, value_to_dict(node))
 
 
 JUST_OBJECTS: Dict[str, BasicType] = {}
