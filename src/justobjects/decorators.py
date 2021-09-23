@@ -1,24 +1,46 @@
 import enum
-from typing import Optional, Union, Iterable
+from functools import partial
+from typing import Callable, Iterable, Optional, Type
 
 import attr
 
-from justobjects.jsontypes import ObjectType, StringType
-
+from justobjects import schema, typings
+from justobjects.jsontypes import ObjectType, StringType, get_type
 
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
 
 
-def data(
-    additional_properties=None,
-    required=None,
-):
+class JustData(typings.Protocol):
+    @classmethod
+    def schema(cls) -> None:
+        ...
+
+
+class AttrClass(typings.Protocol):
+
+    __attrs_attrs__: Iterable[attr.Attribute]
+
+
+def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
+    sc.properties = {}
+    attributes = cls.__attrs_attrs__
+    for attrib in attributes:
+        psc = attrib.metadata.get(JO_SCHEMA) or get_type(attrib.type)
+        is_required = attrib.metadata.get(JO_REQUIRED, False) or attrib.default == attr.NOTHING
+        field_name = attrib.name
+        if is_required:
+            sc.add_required(field_name)
+        sc.properties[field_name] = psc
+    schema.add(cls, sc)
+
+
+def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
     Args:
-        additional_properties (bool): True if additional properties are allowed
-        required (list[str]): list of required property names
+        frozen: frozen data class
+        auto_attribs: set to True to use typings
     Returns:
         attr.s: and attr.s wrapped class
     Example:
@@ -30,30 +52,14 @@ def data(
                 name = jo.string(required=True)
     """
 
-    def wraps(cls):
-        req = required or []
-        setattr(cls, "additional_properties", additional_properties)
-
-        def jo_schema(cls):
-            sc = ObjectType(
-                additional_properties=additional_properties,
-            )
-            sc.properties = {}
-            attributes = cls.__attrs_attrs__
-            for attrib in attributes:
-                psc = attrib.metadata[JO_SCHEMA]
-                is_required = attrib.metadata.get(JO_REQUIRED, False)
-                field_name = attrib.name
-                if is_required and field_name not in req:
-                    req.append(field_name)
-                sc.properties[field_name] = psc
-
-            if req:
-                sc.required = req
-            return sc
-
-        setattr(cls, "jo_schema", classmethod(jo_schema))
-        return attr.s(cls)
+    def wraps(cls: Type) -> Type:
+        sc = ObjectType(
+            additional_properties=False,
+        )
+        js = partial(extract_schema, sc=sc)
+        cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
+        js(cls)
+        return cls
 
     return wraps
 
@@ -63,7 +69,7 @@ def string(
     required: bool = False,
     min_length: Optional[int] = None,
     max_length: Optional[int] = None,
-    enums: Optional[Union[Iterable[str], enum.Enum]] = None,
+    enums: Optional[Iterable[str]] = None,
     description: Optional[str] = None,
 ):
     """Creates a json schema of type string
@@ -87,18 +93,3 @@ def string(
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
-
-
-class ex(enum.Enum):
-    one = 1
-    two = 2
-
-
-@attr.s
-class Past:
-    gh = string(enums=ex)
-
-
-if __name__ == '__main__':
-    pas = Past(gh="2")
-    print(pas)
