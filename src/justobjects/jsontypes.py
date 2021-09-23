@@ -1,11 +1,11 @@
 import collections
-from typing import Dict, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Type
 
 import attr
 
 from justobjects import typings
 
-SchemaType = typings.Literal["null", "boolean", "object", "array", "number", "integer"]
+SchemaType = typings.Literal["null", "boolean", "object", "array", "number", "integer", "string"]
 
 
 def camel_case(snake_case: str) -> str:
@@ -20,10 +20,10 @@ def camel_case(snake_case: str) -> str:
 
 
 class SchemaMixin:
-    def json_schema(self):
+    def json_schema(self) -> Dict[str, Any]:
         return self.parse(self.__dict__)
 
-    def parse(self, val):
+    def parse(self, val: collections.Mapping[str, Any]) -> Dict[str, Any]:
         parsed = {}
         for k, v in val.items():
             if k.startswith("__"):
@@ -41,7 +41,7 @@ class SchemaMixin:
                 parsed[k] = dict_val
         return parsed
 
-    def _to_dict(self, val):
+    def _to_dict(self, val: Any) -> Any:
         if isinstance(val, SchemaMixin):
             return val.json_schema()
         if isinstance(val, (list, set, tuple)):
@@ -62,7 +62,7 @@ class BasicType(SchemaMixin):
 
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    type: str = "number"
+    type: SchemaType = "number"
     default: Optional[int] = None
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
@@ -74,9 +74,9 @@ class NumericType(BasicType):
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    type: str = "string"
+    type: SchemaType = "string"
     default: Optional[str] = None
-    enum: List[str] = attr.ib(factory=list)
+    enum: Iterable[str] = attr.ib(factory=list)
     max_length: Optional[int] = None
     min_length: Optional[int] = None
     pattern: Optional[str] = None
@@ -84,7 +84,7 @@ class StringType(BasicType):
 
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
-    type: str = "object"
+    type: SchemaType = "object"
     additional_properties: bool = False
     required: List[str] = attr.ib(factory=list)
     properties: Dict[str, BasicType] = attr.ib(factory=dict)
@@ -95,7 +95,7 @@ class ObjectType(BasicType):
         self.required.append(field)
 
 
-def get_type(cls: Type) -> BasicType:
+def get_type(cls: Optional[Type] = None) -> BasicType:
     if cls == str:
         return StringType()
     if cls == int:

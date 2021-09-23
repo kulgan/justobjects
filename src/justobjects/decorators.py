@@ -71,7 +71,7 @@ def string(
     max_length: Optional[int] = None,
     enums: Optional[Iterable[str]] = None,
     description: Optional[str] = None,
-):
+) -> attr.Attribute:
     """Creates a json schema of type string
     Args:
         default (str): default value
@@ -83,13 +83,14 @@ def string(
     Returns:
         attr.ib: field definition
     """
+    enum_vals = enums or []
     if isinstance(enums, enum.Enum):
         if enums.member_type != str:
             raise ValueError("Invalid enum")
     sc = StringType(
         min_length=min_length,
         max_length=max_length,
-        enum=enums,
+        enum=enum_vals,
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
