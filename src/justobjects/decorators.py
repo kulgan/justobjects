@@ -4,7 +4,7 @@ from typing import Callable, Iterable, Optional, Type
 
 import attr
 
-from justobjects import schema, typings
+from justobjects import schemas, typings
 from justobjects.jsontypes import ObjectType, StringType, get_type
 
 JO_SCHEMA = "__jo__"
@@ -32,7 +32,7 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
         if is_required:
             sc.add_required(field_name)
         sc.properties[field_name] = psc
-    schema.add(cls, sc)
+    schemas.add(cls, sc)
 
 
 def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Type]:

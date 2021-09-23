@@ -1,9 +1,9 @@
-from justobjects import schema
+from justobjects import schemas
 from tests.models import Actor
 
 
 def test_show_isolated_model() -> None:
-    js = schema.show(Actor)
+    js = schemas.show(Actor)
 
     assert js["type"] == "object"
     assert js["required"] == ["name", "sex"]
@@ -12,4 +12,4 @@ def test_show_isolated_model() -> None:
 def test_validate_isolated_model() -> None:
     actor = Actor(name="Same", sex="Male", age=10)
     assert actor.__dict__
-    schema.validate(actor)
+    schemas.validate(actor)

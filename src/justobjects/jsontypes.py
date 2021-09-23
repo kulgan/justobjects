@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
 
 import attr
 
@@ -23,7 +23,7 @@ class SchemaMixin:
     def json_schema(self) -> Dict[str, Any]:
         return self.parse(self.__dict__)
 
-    def parse(self, val: collections.Mapping[str, Any]) -> Dict[str, Any]:
+    def parse(self, val: Mapping[str, Any]) -> Dict[str, Any]:
         parsed = {}
         for k, v in val.items():
             if k.startswith("__"):
