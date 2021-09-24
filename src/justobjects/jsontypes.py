@@ -38,7 +38,6 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
         # map ref
         if k == "ref":
             k = "$ref"
-        k = camel_case(k)
         dict_val = value_to_dict(v)
         if dict_val or isinstance(dict_val, bool):
             parsed[k] = dict_val
@@ -83,9 +82,9 @@ class NumericType(BasicType):
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
     minimum: Optional[int] = None
-    multiple_of: Optional[int] = None
-    exclusive_maximum: Optional[int] = None
-    exclusive_minimum: Optional[int] = None
+    multipleOf: Optional[int] = None
+    exclusiveMaximum: Optional[int] = None
+    exclusiveMinimum: Optional[int] = None
 
 
 @attr.s(auto_attribs=True)
@@ -98,15 +97,15 @@ class StringType(BasicType):
     type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
     enum: Iterable[str] = attr.ib(factory=list)
-    max_length: Optional[int] = None
-    min_length: Optional[int] = None
+    maxLength: Optional[int] = None
+    minLength: Optional[int] = None
     pattern: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
     type: SchemaDataType = attr.ib(default="object", init=False)
-    additional_properties: bool = False
+    additionalProperties: bool = False
     required: List[str] = attr.ib(factory=list)
     definitions: Dict[str, BasicType] = attr.ib(factory=dict)
     properties: Dict[str, JustSchema] = attr.ib(factory=dict)

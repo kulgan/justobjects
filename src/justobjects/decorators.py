@@ -73,7 +73,7 @@ def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Ty
     """
 
     def wraps(cls: Type) -> Type:
-        sc = ObjectType(additional_properties=False, description=cls.__doc__)
+        sc = ObjectType(additionalProperties=False, description=cls.__doc__)
         js = partial(extract_schema, sc=sc)
         cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
         js(cls)
@@ -95,7 +95,7 @@ def string(
         default: default value
         required: True if it should be required in the schema
         min_length: minimum length of the string
-        max_length: maximum length of the strin
+        max_length: maximum length of the string
         enums: represent schema as an enum instead of free text
         description: Property description
     Returns:
@@ -106,8 +106,8 @@ def string(
         if enums.member_type != str:
             raise ValueError("Invalid enum")
     sc = StringType(
-        min_length=min_length,
-        max_length=max_length,
+        minLength=min_length,
+        maxLength=max_length,
         enum=enum_vals,
         default=default,
         description=description,
@@ -155,9 +155,9 @@ def numeric(
         minimum=minimum,
         maximum=maximum,
         default=default,
-        multiple_of=multiple_of,
-        exclusive_minimum=exclusive_min,
-        exclusive_maximum=exclusive_max,
+        multipleOf=multiple_of,
+        exclusiveMinimum=exclusive_min,
+        exclusiveMaximum=exclusive_max,
         description=description,
     )
     return attr.ib(type=float, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
@@ -180,9 +180,9 @@ def integer(
         maximum=maximum,
         default=default,
         description=description,
-        multiple_of=multiple_of,
-        exclusive_minimum=exclusive_min,
-        exclusive_maximum=exclusive_max,
+        multipleOf=multiple_of,
+        exclusiveMinimum=exclusive_min,
+        exclusiveMaximum=exclusive_max,
     )
     return attr.ib(type=float, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 

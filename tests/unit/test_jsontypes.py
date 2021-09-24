@@ -17,8 +17,8 @@ def test_to_camel_case(value: str, expectation: str) -> None:
 
 
 def test_mixin__json_schema() -> None:
-    obj = jsontypes.ObjectType(additional_properties=True)
-    obj.properties["label"] = jsontypes.StringType(default="skin", max_length=10)
+    obj = jsontypes.ObjectType(additionalProperties=True)
+    obj.properties["label"] = jsontypes.StringType(default="skin", maxLength=10)
     obj.add_required("label")
     js = obj.json_schema()
 
@@ -29,7 +29,7 @@ def test_mixin__json_schema() -> None:
 
 
 def test_numeric_type() -> None:
-    obj = jsontypes.NumericType(default=10, maximum=100, multiple_of=2)
+    obj = jsontypes.NumericType(default=10, maximum=100, multipleOf=2)
     js = obj.json_schema()
 
     assert js["type"] == "number"
