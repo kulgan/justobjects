@@ -1,11 +1,13 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
 
 from justobjects import typings
 
-SchemaType = typings.Literal["null", "boolean", "object", "array", "number", "integer", "string"]
+SchemaDataType = typings.Literal[
+    "null", "boolean", "object", "array", "number", "integer", "string"
+]
 
 
 def camel_case(snake_case: str) -> str:
@@ -19,85 +21,95 @@ def camel_case(snake_case: str) -> str:
     return cpnts[0] + "".join(x.title() for x in cpnts[1:])
 
 
-class SchemaMixin:
+class JustSchema:
     def json_schema(self) -> Dict[str, Any]:
-        return self.parse(self.__dict__)
+        return parse_dict(self.__dict__)
 
-    def parse(self, val: Mapping[str, Any]) -> Dict[str, Any]:
-        parsed = {}
-        for k, v in val.items():
-            if k.startswith("__"):
-                # skip private properties
-                continue
-            # skip None values
-            if v is None:
-                continue
-            # map ref
-            if k == "ref":
-                k = "$ref"
-            k = camel_case(k)
-            dict_val = self._to_dict(v)
-            if dict_val:
-                parsed[k] = dict_val
-        return parsed
 
-    def _to_dict(self, val: Any) -> Any:
-        if isinstance(val, SchemaMixin):
-            return val.json_schema()
-        if isinstance(val, (list, set, tuple)):
-            return [self._to_dict(v) for v in val]
-        if isinstance(val, collections.Mapping):
-            return self.parse(val)
-        if hasattr(val, "__dict__"):
-            return self.parse(val.__dict__)
+def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
+    parsed = {}
+    for k, v in val.items():
+        if k.startswith("__"):
+            # skip private properties
+            continue
+        # skip None values
+        if v is None:
+            continue
+        # map ref
+        if k == "ref":
+            k = "$ref"
+        dict_val = value_to_dict(v)
+        if dict_val or isinstance(dict_val, bool):
+            parsed[k] = dict_val
+    return parsed
 
-        return val
+
+def value_to_dict(val: Any) -> Any:
+    if isinstance(val, JustSchema):
+        return val.json_schema()
+    if isinstance(val, (list, set, tuple)):
+        return [value_to_dict(v) for v in val]
+    if isinstance(val, collections.Mapping):
+        return parse_dict(val)
+    if hasattr(val, "__dict__"):
+        return parse_dict(val.__dict__)
+
+    return val
 
 
 @attr.s(auto_attribs=True)
-class BasicType(SchemaMixin):
-    type: SchemaType
+class RefType(JustSchema):
+    ref: str
     description: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
+class BasicType(JustSchema):
+    type: SchemaDataType
+    description: Optional[str] = None
+
+
+@attr.s(auto_attribs=True)
+class BooleanType(BasicType):
+    type: SchemaDataType = attr.ib(default="boolean", init=False)
+    default: Optional[bool] = None
+
+
+@attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    type: SchemaType = "number"
+    type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[int] = None
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
     minimum: Optional[int] = None
-    multiple_of: Optional[int] = None
-    exclusive_maximum: Optional[int] = None
-    exclusive_minimum: Optional[int] = None
+    multipleOf: Optional[int] = None
+    exclusiveMaximum: Optional[int] = None
+    exclusiveMinimum: Optional[int] = None
+
+
+@attr.s(auto_attribs=True)
+class IntegerType(NumericType):
+    type: SchemaDataType = attr.ib(default="integer", init=False)
 
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    type: SchemaType = "string"
+    type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
     enum: Iterable[str] = attr.ib(factory=list)
-    max_length: Optional[int] = None
-    min_length: Optional[int] = None
+    maxLength: Optional[int] = None
+    minLength: Optional[int] = None
     pattern: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
-    type: SchemaType = "object"
-    additional_properties: bool = False
+    type: SchemaDataType = attr.ib(default="object", init=False)
+    additionalProperties: bool = False
     required: List[str] = attr.ib(factory=list)
-    properties: Dict[str, BasicType] = attr.ib(factory=dict)
+    properties: Dict[str, JustSchema] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
             return
         self.required.append(field)
-
-
-def get_type(cls: Optional[Type] = None) -> BasicType:
-    if cls == str:
-        return StringType()
-    if cls == int:
-        return NumericType()
-    raise ValueError(f"Unknown type {cls} specified")

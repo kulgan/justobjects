@@ -1,14 +1,23 @@
 import enum
 from functools import partial
-from typing import Callable, Iterable, Optional, Type
+from typing import Callable, Iterable, Optional, Type, cast
 
 import attr
 
 from justobjects import schemas, typings
-from justobjects.jsontypes import ObjectType, StringType, get_type
+from justobjects.jsontypes import (
+    BooleanType,
+    IntegerType,
+    NumericType,
+    ObjectType,
+    RefType,
+    StringType,
+)
 
+JO_TYPE = "__jo__type__"
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
+JO_OBJECT_DESC = "__jo__object_desc__"
 
 
 class JustData(typings.Protocol):
@@ -18,7 +27,7 @@ class JustData(typings.Protocol):
 
 
 class AttrClass(typings.Protocol):
-
+    __name__: str
     __attrs_attrs__: Iterable[attr.Attribute]
 
 
@@ -26,12 +35,23 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
     sc.properties = {}
     attributes = cls.__attrs_attrs__
     for attrib in attributes:
-        psc = attrib.metadata.get(JO_SCHEMA) or get_type(attrib.type)
+        cls_type = attrib.metadata.get(JO_TYPE, attrib.type)
+        psc = attrib.metadata.get(JO_SCHEMA) or schemas.get_type(cls_type)
         is_required = attrib.metadata.get(JO_REQUIRED, False) or attrib.default == attr.NOTHING
+
         field_name = attrib.name
         if is_required:
             sc.add_required(field_name)
-        sc.properties[field_name] = psc
+
+        if psc.type != "object":
+            sc.properties[field_name] = psc
+            continue
+
+        # cls_type = cast(AttrClass, cls_type)
+        desc = attrib.metadata.get(JO_OBJECT_DESC)
+        sc.properties[field_name] = RefType(
+            ref=f"#/definitions/{cls_type.__module__}.{cls_type.__name__}", description=desc
+        )
     schemas.add(cls, sc)
 
 
@@ -53,9 +73,7 @@ def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Ty
     """
 
     def wraps(cls: Type) -> Type:
-        sc = ObjectType(
-            additional_properties=False,
-        )
+        sc = ObjectType(additionalProperties=False, description=cls.__doc__)
         js = partial(extract_schema, sc=sc)
         cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
         js(cls)
@@ -74,23 +92,113 @@ def string(
 ) -> attr.Attribute:
     """Creates a json schema of type string
     Args:
-        default (str): default value
-        required (bool): True if it should be required in the schema
-        min_length (int): minimum length of the string
-        max_length (int): maximum length of the strin
+        default: default value
+        required: True if it should be required in the schema
+        min_length: minimum length of the string
+        max_length: maximum length of the string
         enums: represent schema as an enum instead of free text
-        description (str): Property description
+        description: Property description
     Returns:
-        attr.ib: field definition
+        attr field definition
     """
     enum_vals = enums or []
     if isinstance(enums, enum.Enum):
         if enums.member_type != str:
             raise ValueError("Invalid enum")
     sc = StringType(
-        min_length=min_length,
-        max_length=max_length,
+        minLength=min_length,
+        maxLength=max_length,
         enum=enum_vals,
+        default=default,
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def ref(
+    ref_type: Type, required: bool = False, description: Optional[str] = None
+) -> attr.Attribute:
+    """Creates a json reference to another json object
+
+    Args:
+        ref_type: class type referenced
+        required: True if field is required
+        description: ref specific documentation/comments
+    Returns:
+        attr attribute definition
+    """
+    obj = schemas.get(ref_type)
+    return attr.ib(
+        type=ref_type,
+        metadata={
+            JO_SCHEMA: obj,
+            JO_TYPE: ref_type,
+            JO_REQUIRED: required,
+            JO_OBJECT_DESC: description,
+        },
+    )
+
+
+def numeric(
+    default: Optional[int] = None,
+    minimum: Optional[int] = None,
+    maximum: Optional[int] = None,
+    multiple_of: Optional[int] = None,
+    exclusive_min: Optional[int] = None,
+    exclusive_max: Optional[int] = None,
+    required: Optional[bool] = None,
+    description: Optional[str] = None,
+) -> attr.Attribute:
+    """Create a schema of type number"""
+
+    sc = NumericType(
+        minimum=minimum,
+        maximum=maximum,
+        default=default,
+        multipleOf=multiple_of,
+        exclusiveMinimum=exclusive_min,
+        exclusiveMaximum=exclusive_max,
+        description=description,
+    )
+    return attr.ib(type=float, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def integer(
+    default: Optional[int] = None,
+    minimum: Optional[int] = None,
+    maximum: Optional[int] = None,
+    multiple_of: Optional[int] = None,
+    exclusive_min: Optional[int] = None,
+    exclusive_max: Optional[int] = None,
+    required: Optional[bool] = None,
+    description: Optional[str] = None,
+) -> attr.Attribute:
+    """Create a schema of type integer"""
+
+    sc = IntegerType(
+        minimum=minimum,
+        maximum=maximum,
+        default=default,
+        description=description,
+        multipleOf=multiple_of,
+        exclusiveMinimum=exclusive_min,
+        exclusiveMaximum=exclusive_max,
+    )
+    return attr.ib(type=float, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def boolean(
+    default: Optional[bool] = None,
+    required: Optional[bool] = None,
+    description: Optional[str] = None,
+) -> attr.Attribute:
+    """Boolean schema data type
+    Args:
+        default: default boolean value
+        required (bool):
+        description (str): summary/description
+    Returns:
+        attr.ib:
+    """
+    sc = BooleanType(default=default, description=description)
+    return attr.ib(type=bool, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
