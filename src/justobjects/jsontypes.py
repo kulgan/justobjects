@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
 
@@ -107,20 +107,9 @@ class ObjectType(BasicType):
     type: SchemaDataType = attr.ib(default="object", init=False)
     additionalProperties: bool = False
     required: List[str] = attr.ib(factory=list)
-    definitions: Dict[str, BasicType] = attr.ib(factory=dict)
     properties: Dict[str, JustSchema] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
             return
         self.required.append(field)
-
-
-def get_type(cls: Optional[Type] = None) -> BasicType:
-    if cls in (str, StringType):
-        return StringType()
-    if cls in (float, NumericType):
-        return NumericType()
-    if cls in (int, IntegerType):
-        return IntegerType()
-    raise ValueError(f"Unknown type {cls} specified")

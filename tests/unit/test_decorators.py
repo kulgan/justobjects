@@ -3,18 +3,18 @@ import json
 import pytest
 
 from justobjects import schemas
-from tests.models import Actor, Movie
+from tests.models import Actor, Movie, Role
 
 
 def test_show_isolated_model() -> None:
     js = schemas.show(Actor)
 
     assert js["type"] == "object"
-    assert js["required"] == ["name", "sex"]
+    assert js["required"] == ["name", "sex", "role"]
 
 
 def test_validate_isolated_model() -> None:
-    actor = Actor(name="Same", sex="Male", age=10)
+    actor = Actor(name="Same", sex="Male", age=10, role=Role(name="Simons", race="white"))
     assert actor.__dict__
     schemas.validate(actor)
 
@@ -28,7 +28,7 @@ def test_show_nested_object_property() -> None:
 
 
 def test_validate_nested_object() -> None:
-    actor = Actor(name="Same", sex="Male", age=10)
+    actor = Actor(name="Same", sex="Male", age=10, role=Role(name="Edgar Samson", race="black"))
     movie = Movie(main=actor, title="T")
 
     with pytest.raises(schemas.ValidationException) as v:

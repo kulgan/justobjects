@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Callable, Iterable, Optional, Type
+from typing import Callable, Iterable, Optional, Type, cast
 
 import attr
 
@@ -12,12 +12,11 @@ from justobjects.jsontypes import (
     ObjectType,
     RefType,
     StringType,
-    get_type,
 )
 
+JO_TYPE = "__jo__type__"
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
-JO_OBJECT = "__jo__object__"
 JO_OBJECT_DESC = "__jo__object_desc__"
 
 
@@ -36,22 +35,23 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
     sc.properties = {}
     attributes = cls.__attrs_attrs__
     for attrib in attributes:
-        psc = attrib.metadata.get(JO_SCHEMA) or get_type(attrib.type)
+        cls_type = attrib.metadata.get(JO_TYPE, attrib.type)
+        psc = attrib.metadata.get(JO_SCHEMA) or schemas.get_type(cls_type)
         is_required = attrib.metadata.get(JO_REQUIRED, False) or attrib.default == attr.NOTHING
 
         field_name = attrib.name
         if is_required:
             sc.add_required(field_name)
 
-        is_object = attrib.metadata.get(JO_OBJECT)
-        if is_object:
-            desc = attrib.metadata.get(JO_OBJECT_DESC)
-            sc.definitions[f"{cls.__module__}.{cls.__name__}"] = psc
-            sc.properties[field_name] = RefType(
-                ref=f"#/definitions/{cls.__module__}.{cls.__name__}", description=desc
-            )
+        if psc.type != "object":
+            sc.properties[field_name] = psc
             continue
-        sc.properties[field_name] = psc
+
+        # cls_type = cast(AttrClass, cls_type)
+        desc = attrib.metadata.get(JO_OBJECT_DESC)
+        sc.properties[field_name] = RefType(
+            ref=f"#/definitions/{cls_type.__module__}.{cls_type.__name__}", description=desc
+        )
     schemas.add(cls, sc)
 
 
@@ -132,8 +132,8 @@ def ref(
         type=ref_type,
         metadata={
             JO_SCHEMA: obj,
+            JO_TYPE: ref_type,
             JO_REQUIRED: required,
-            JO_OBJECT: True,
             JO_OBJECT_DESC: description,
         },
     )

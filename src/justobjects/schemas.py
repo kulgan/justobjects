@@ -1,9 +1,20 @@
-from typing import Any, Dict, Iterable, List, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import attr
 from jsonschema import Draft7Validator
 
-from justobjects.jsontypes import BasicType, value_to_dict
+from justobjects.jsontypes import (
+    BasicType,
+    BooleanType,
+    IntegerType,
+    NumericType,
+    ObjectType,
+    RefType,
+    StringType,
+    value_to_dict,
+)
+
+JUST_OBJECTS: Dict[str, ObjectType] = {}
 
 
 @attr.s(frozen=True, auto_attribs=True)
@@ -18,20 +29,39 @@ class ValidationException(Exception):
         self.errors = errors
 
 
-def add(cls: Any, obj: BasicType) -> None:
+def add(cls: Any, obj: ObjectType) -> None:
     JUST_OBJECTS[f"{cls.__module__}.{cls.__name__}"] = obj
 
 
-def get(cls: Type) -> BasicType:
-    obj = JUST_OBJECTS.get(f"{cls.__module__}.{cls.__name__}")
-    if not obj:
+def get(cls: Type) -> ObjectType:
+    cls_name = f"{cls.__module__}.{cls.__name__}"
+    if cls_name not in JUST_OBJECTS:
         raise ValueError("Unknown data object")
-    return obj
+    return JUST_OBJECTS[cls_name]
 
 
 def show(cls: Type) -> Dict:
     obj = get(cls)
-    return obj.json_schema()
+    entries = [obj]
+    definitions = {}
+
+    while entries:
+        current = entries.pop()
+        for v in current.properties.values():
+            if not isinstance(v, RefType):
+                continue
+
+            ref = v.ref.split("/")[-1]
+            print(ref)
+            if ref in definitions:
+                continue
+
+            psc = JUST_OBJECTS[ref]
+            entries.append(psc)
+            definitions[ref] = psc.json_schema()
+    raw = obj.json_schema()
+    raw["definitions"] = definitions
+    return raw
 
 
 def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:
@@ -60,4 +90,13 @@ def validate(node: Any) -> None:
     validate_raw(node.__class__, value_to_dict(node))
 
 
-JUST_OBJECTS: Dict[str, BasicType] = {}
+def get_type(cls: Type) -> BasicType:
+    if cls in (str, StringType):
+        return StringType()
+    if cls in (float, NumericType):
+        return NumericType()
+    if cls in (int, IntegerType):
+        return IntegerType()
+    if cls in (bool, BooleanType):
+        return BooleanType()
+    return get(cls)

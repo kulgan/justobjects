@@ -4,11 +4,18 @@ import justobjects as jo
 
 
 @jo.data(auto_attribs=True)
+class Role:
+    name: str
+    race: str
+
+
+@jo.data(auto_attribs=True)
 class Actor:
     """A person that can play movie characters"""
 
     name: str
     sex: str
+    role: Role
     age: int = 10
 
 
