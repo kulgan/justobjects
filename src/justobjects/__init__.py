@@ -8,17 +8,29 @@ from justobjects.jsontypes import (
     ObjectType,
     RefType,
 )
+from justobjects.schemas import (
+    ValidationError,
+    ValidationException,
+    show,
+    validate,
+    validate_raw,
+)
 
 VERSION = get_distribution(__name__).version
 
 __all__ = [
     "data",
     "ref",
+    "show",
+    "validate",
+    "validate_raw",
     "string",
     "BasicType",
     "IntegerType",
     "NumericType",
     "ObjectType",
     "RefType",
+    "ValidationError",
+    "ValidationException",
     "VERSION",
 ]

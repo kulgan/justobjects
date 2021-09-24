@@ -1,5 +1,3 @@
-import attr
-
 import justobjects as jo
 
 
