@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from justobjects import schemas
@@ -20,6 +22,7 @@ def test_validate_isolated_model() -> None:
 def test_show_nested_object_property() -> None:
     js = schemas.show(Movie)
 
+    print(json.dumps(js, indent=2))
     assert js["type"] == "object"
     assert js["definitions"]
 

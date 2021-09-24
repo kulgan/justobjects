@@ -28,7 +28,7 @@ class JustData(typings.Protocol):
 
 
 class AttrClass(typings.Protocol):
-
+    __name__: str
     __attrs_attrs__: Iterable[attr.Attribute]
 
 
@@ -109,12 +109,15 @@ def string(
         min_length=min_length,
         max_length=max_length,
         enum=enum_vals,
+        default=default,
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
-def ref(ref_type: Type, required=False, description: Optional[str] = None) -> attr.Attribute:
+def ref(
+    ref_type: Type, required: bool = False, description: Optional[str] = None
+) -> attr.Attribute:
     """Creates a json reference to another json object
 
     Args:
@@ -136,7 +139,7 @@ def ref(ref_type: Type, required=False, description: Optional[str] = None) -> at
     )
 
 
-def number(
+def numeric(
     default: Optional[int] = None,
     minimum: Optional[int] = None,
     maximum: Optional[int] = None,
@@ -145,12 +148,13 @@ def number(
     exclusive_max: Optional[int] = None,
     required: Optional[bool] = None,
     description: Optional[str] = None,
-):
+) -> attr.Attribute:
     """Create a schema of type number"""
 
     sc = NumericType(
         minimum=minimum,
         maximum=maximum,
+        default=default,
         multiple_of=multiple_of,
         exclusive_minimum=exclusive_min,
         exclusive_maximum=exclusive_max,
@@ -168,12 +172,13 @@ def integer(
     exclusive_max: Optional[int] = None,
     required: Optional[bool] = None,
     description: Optional[str] = None,
-):
+) -> attr.Attribute:
     """Create a schema of type integer"""
 
     sc = IntegerType(
         minimum=minimum,
         maximum=maximum,
+        default=default,
         description=description,
         multiple_of=multiple_of,
         exclusive_minimum=exclusive_min,
@@ -186,7 +191,7 @@ def boolean(
     default: Optional[bool] = None,
     required: Optional[bool] = None,
     description: Optional[str] = None,
-):
+) -> attr.Attribute:
     """Boolean schema data type
     Args:
         default: default boolean value

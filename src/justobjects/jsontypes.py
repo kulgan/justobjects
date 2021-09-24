@@ -5,7 +5,9 @@ import attr
 
 from justobjects import typings
 
-SchemaType = typings.Literal["null", "boolean", "object", "array", "number", "integer", "string"]
+SchemaDataType = typings.Literal[
+    "null", "boolean", "object", "array", "number", "integer", "string"
+]
 
 
 def camel_case(snake_case: str) -> str:
@@ -19,7 +21,7 @@ def camel_case(snake_case: str) -> str:
     return cpnts[0] + "".join(x.title() for x in cpnts[1:])
 
 
-class SchemaMixin:
+class JustSchema:
     def json_schema(self) -> Dict[str, Any]:
         return parse_dict(self.__dict__)
 
@@ -38,13 +40,13 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
             k = "$ref"
         k = camel_case(k)
         dict_val = value_to_dict(v)
-        if dict_val:
+        if dict_val or isinstance(dict_val, bool):
             parsed[k] = dict_val
     return parsed
 
 
 def value_to_dict(val: Any) -> Any:
-    if isinstance(val, SchemaMixin):
+    if isinstance(val, JustSchema):
         return val.json_schema()
     if isinstance(val, (list, set, tuple)):
         return [value_to_dict(v) for v in val]
@@ -57,26 +59,26 @@ def value_to_dict(val: Any) -> Any:
 
 
 @attr.s(auto_attribs=True)
-class RefType(SchemaMixin):
+class RefType(JustSchema):
     ref: str
     description: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
-class BasicType(SchemaMixin):
-    type: SchemaType
+class BasicType(JustSchema):
+    type: SchemaDataType
     description: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
 class BooleanType(BasicType):
-    type: SchemaType = attr.ib(default="boolean", init=False)
+    type: SchemaDataType = attr.ib(default="boolean", init=False)
     default: Optional[bool] = None
 
 
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    type: SchemaType = attr.ib(default="number", init=False)
+    type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[int] = None
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
@@ -86,13 +88,14 @@ class NumericType(BasicType):
     exclusive_minimum: Optional[int] = None
 
 
+@attr.s(auto_attribs=True)
 class IntegerType(NumericType):
-    type: SchemaType = attr.ib(default="integer", init=False)
+    type: SchemaDataType = attr.ib(default="integer", init=False)
 
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    type: SchemaType = attr.ib(default="string", init=False)
+    type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
     enum: Iterable[str] = attr.ib(factory=list)
     max_length: Optional[int] = None
@@ -102,11 +105,11 @@ class StringType(BasicType):
 
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
-    type: SchemaType = attr.ib(default="object", init=False)
+    type: SchemaDataType = attr.ib(default="object", init=False)
     additional_properties: bool = False
     required: List[str] = attr.ib(factory=list)
     definitions: Dict[str, BasicType] = attr.ib(factory=dict)
-    properties: Dict[str, BasicType] = attr.ib(factory=dict)
+    properties: Dict[str, JustSchema] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
