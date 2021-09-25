@@ -1,11 +1,12 @@
 import enum
 from functools import partial
-from typing import Callable, Iterable, Optional, Type, cast
+from typing import Any, Callable, Iterable, Optional, Type, cast
 
 import attr
 
 from justobjects import schemas, typings
 from justobjects.jsontypes import (
+    ArrayType,
     BooleanType,
     IntegerType,
     NumericType,
@@ -47,7 +48,6 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
             sc.properties[field_name] = psc
             continue
 
-        # cls_type = cast(AttrClass, cls_type)
         desc = attrib.metadata.get(JO_OBJECT_DESC)
         sc.properties[field_name] = RefType(
             ref=f"#/definitions/{cls_type.__module__}.{cls_type.__name__}", description=desc
@@ -202,3 +202,19 @@ def boolean(
     """
     sc = BooleanType(default=default, description=description)
     return attr.ib(type=bool, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def array(
+    item: Type,
+    default: Optional[Any] = None,
+    min_items: Optional[int] = None,
+    max_items: Optional[int] = None,
+    required: bool = False,
+) -> attr.Attribute:
+    """Array data type"""
+    ref_type = None
+    item_type = schemas.get_type(item)
+    if item_type.type == "object":
+        ref_type = RefType(ref=f"#/definitions/{item.__module__}.{item.__name__}")
+    sc = ArrayType(items=ref_type or item_type, minItems=min_items, maxItems=max_items)
+    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})

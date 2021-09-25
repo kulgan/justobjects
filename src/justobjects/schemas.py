@@ -1,9 +1,11 @@
-from typing import Any, Dict, Iterable, List, Type, Union
+import functools
+from typing import Any, Dict, GenericMeta, Iterable, List, Type, Union  # type: ignore
 
 import attr
 from jsonschema import Draft7Validator
 
 from justobjects.jsontypes import (
+    ArrayType,
     BasicType,
     BooleanType,
     IntegerType,
@@ -15,6 +17,16 @@ from justobjects.jsontypes import (
 )
 
 JUST_OBJECTS: Dict[str, ObjectType] = {}
+
+
+@functools.lru_cache()
+def definitions(cls_name: str) -> Dict[str, Dict[str, Any]]:
+    defs: Dict[str, Any] = {}
+    for label, entry in JUST_OBJECTS.items():
+        if label == cls_name:
+            continue
+        defs[label] = entry.json_schema()
+    return defs
 
 
 @attr.s(frozen=True, auto_attribs=True)
@@ -42,25 +54,9 @@ def get(cls: Type) -> ObjectType:
 
 def show(cls: Type) -> Dict:
     obj = get(cls)
-    entries = [obj]
-    definitions = {}
-
-    while entries:
-        current = entries.pop()
-        for v in current.properties.values():
-            if not isinstance(v, RefType):
-                continue
-
-            ref = v.ref.split("/")[-1]
-            print(ref)
-            if ref in definitions:
-                continue
-
-            psc = JUST_OBJECTS[ref]
-            entries.append(psc)
-            definitions[ref] = psc.json_schema()
     raw = obj.json_schema()
-    raw["definitions"] = definitions
+    cls_name = f"{cls.__module__}.{cls.__name__}"
+    raw["definitions"] = definitions(cls_name)
     return raw
 
 
@@ -91,6 +87,8 @@ def validate(node: Any) -> None:
 
 
 def get_type(cls: Type) -> BasicType:
+    if isinstance(cls, GenericMeta):
+        return get_typed(cls)
     if cls in (str, StringType):
         return StringType()
     if cls in (float, NumericType):
@@ -100,3 +98,16 @@ def get_type(cls: Type) -> BasicType:
     if cls in (bool, BooleanType):
         return BooleanType()
     return get(cls)
+
+
+def get_typed(cls: GenericMeta) -> BasicType:
+    if cls.__name__ in ["Iterable", "List", "Set"]:
+        obj_cls = cls.__args__[0]  # type: ignore
+        ref = None
+        obj = get_type(obj_cls)
+        if obj.type == "object":
+            ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
+        return ArrayType(items=ref or obj)
+    if cls.__name__ in ["Dict", "Mapping"]:
+        return ObjectType(additionalProperties=True)
+    raise ValueError(f"Unknown data type {cls}")

@@ -1,3 +1,5 @@
+from typing import Iterable, List
+
 import justobjects as jo
 
 
@@ -32,3 +34,9 @@ class Movie:
     released = jo.boolean(default=False, required=False)
     characters = jo.integer(default=100, required=False)
     budget = jo.numeric(default=100000, required=False)
+
+
+@jo.data(auto_attribs=True)
+class Manager:
+    actors: Iterable[Actor]
+    movies: List[Movie]

@@ -6,7 +6,7 @@ import attr
 from justobjects import typings
 
 SchemaDataType = typings.Literal[
-    "null", "boolean", "object", "array", "number", "integer", "string"
+    "null", "array", "boolean", "object", "array", "number", "integer", "string"
 ]
 
 
@@ -113,3 +113,11 @@ class ObjectType(BasicType):
         if field in self.required:
             return
         self.required.append(field)
+
+
+@attr.s(auto_attribs=True)
+class ArrayType(BasicType):
+    type: SchemaDataType = attr.ib(default="array", init=False)
+    items: JustSchema = attr.ib(default=None)
+    minItems: Optional[int] = None
+    maxItems: Optional[int] = None

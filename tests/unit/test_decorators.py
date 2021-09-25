@@ -3,7 +3,7 @@ import json
 import pytest
 
 from justobjects import schemas
-from tests.models import Actor, Movie, Role
+from tests.models import Actor, Manager, Movie, Role
 
 
 def test_show_isolated_model() -> None:
@@ -36,3 +36,9 @@ def test_validate_nested_object() -> None:
     assert len(v.value.errors) == 1
     error = v.value.errors[0]
     assert error.element == "title"
+
+
+def test_show_array_type() -> None:
+    js = schemas.show(Manager)
+
+    print(json.dumps(js, indent=2))
