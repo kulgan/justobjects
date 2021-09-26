@@ -3,13 +3,34 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Just Objects's documentation!
-========================================
+Just Objects
+============
+Simple Python data object definitions and validation
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
+   jsontypes
+   decorators
+   schemas
+
+Quickstart
+----------
+Install from pypi via ``pip`` or add to your project requirements/dependency
+
+.. code-block:: bash
+
+    $ pip install justobjects
+
+installation requires python36+ and only depends on `attrs`, `jsonschema` and `typing_extensions` for
+python < 3.8
+
+Start Defining Objects
+++++++++++++++++++++++
+.. literalinclude:: ../examples/objects_with_jo.py
+    :language: python
+    :lines: 1-20
 
 
 Indices and tables

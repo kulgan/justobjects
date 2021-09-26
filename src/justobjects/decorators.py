@@ -43,7 +43,7 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
         if is_required:
             sc.add_required(field_name)
 
-        if psc.type != "object":
+        if not isinstance(psc, ObjectType):
             sc.properties[field_name] = psc
             continue
 
@@ -58,18 +58,24 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
 def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
+
     Args:
         frozen: frozen data class
         auto_attribs: set to True to use typings
     Returns:
-        attr.s: and attr.s wrapped class
+        a JustSchema object wrapper
     Example:
-        .. code-block::
+        .. code-block:: python
+
             import justobjects as jo
+
             @jo.data()
             class Sample(object):
                 age = jo.integer(required=True, minimum=18)
                 name = jo.string(required=True)
+
+            # show schema
+            jo.show(Sample)
     """
 
     def wraps(cls: Type) -> Type:
@@ -91,6 +97,7 @@ def string(
     description: Optional[str] = None,
 ) -> attr.Attribute:
     """Creates a json schema of type string
+
     Args:
         default: default value
         required: True if it should be required in the schema
@@ -99,7 +106,7 @@ def string(
         enums: represent schema as an enum instead of free text
         description: Property description
     Returns:
-        attr field definition
+        a string attribute wrapper
     """
     enum_vals = enums or []
     if isinstance(enums, enum.Enum):
@@ -125,7 +132,7 @@ def ref(
         required: True if field is required
         description: ref specific documentation/comments
     Returns:
-        attr attribute definition
+        a schema reference attribute wrapper
     """
     obj = schemas.get(ref_type)
     return attr.ib(
@@ -141,15 +148,28 @@ def ref(
 
 def numeric(
     default: Optional[float] = None,
-    minimum: Optional[int] = None,
-    maximum: Optional[int] = None,
+    minimum: Optional[float] = None,
+    maximum: Optional[float] = None,
     multiple_of: Optional[int] = None,
-    exclusive_min: Optional[int] = None,
-    exclusive_max: Optional[int] = None,
+    exclusive_min: Optional[float] = None,
+    exclusive_max: Optional[float] = None,
     required: Optional[bool] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
-    """The number type is used for any numeric type, either integers or floating point numbers."""
+    """The number type is used for any numeric type, either integers or floating point numbers.
+
+    Args:
+        default: default value used for instances
+        minimum: a number denoting the minimum allowed value for instances
+        maximum: a number denoting the maximum allowed value for instances
+        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        exclusive_max: a number denoting maximum allowed value should be less that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        required: True if field should be a required field
+        description: Comments describing the field
+    Returns:
+        A wrapped NumbericType
+    """
 
     sc = NumericType(
         minimum=minimum,
@@ -173,7 +193,20 @@ def integer(
     required: Optional[bool] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
-    """The integer type is used for integral numbers"""
+    """The integer type is used for integral numbers
+
+    Args:
+        default: default value used for instances
+        minimum: a number denoting the minimum allowed value for instances
+        maximum: a number denoting the maximum allowed value for instances
+        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        exclusive_max: a number denoting maximum allowed value should be less that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        required: True if field should be a required field
+        description: Comments describing the field
+    Returns:
+        A wrapped IntegerType
+    """
 
     sc = IntegerType(
         minimum=minimum,
@@ -184,7 +217,7 @@ def integer(
         exclusiveMinimum=exclusive_min,
         exclusiveMaximum=exclusive_max,
     )
-    return attr.ib(type=float, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    return attr.ib(type=int, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
 def boolean(
@@ -193,6 +226,7 @@ def boolean(
     description: Optional[str] = None,
 ) -> attr.Attribute:
     """Boolean schema data type
+
     Args:
         default: default boolean value
         required (bool):
