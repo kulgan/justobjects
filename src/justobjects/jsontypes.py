@@ -87,11 +87,11 @@ class NumericType(BasicType):
     type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[float] = None
     enum: List[int] = attr.ib(factory=list)
-    maximum: Optional[int] = None
-    minimum: Optional[int] = None
+    maximum: Optional[float] = None
+    minimum: Optional[float] = None
     multipleOf: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
-    exclusiveMaximum: Optional[int] = None
-    exclusiveMinimum: Optional[int] = None
+    exclusiveMaximum: Optional[float] = None
+    exclusiveMinimum: Optional[float] = None
 
 
 @attr.s(auto_attribs=True)
@@ -99,6 +99,10 @@ class IntegerType(NumericType):
     """The integer type is used for integral numbers"""
 
     type: SchemaDataType = attr.ib(default="integer", init=False)
+    maximum: Optional[int] = None
+    minimum: Optional[int] = None
+    exclusiveMaximum: Optional[int] = None
+    exclusiveMinimum: Optional[int] = None
 
 
 @attr.s(auto_attribs=True)
