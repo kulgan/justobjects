@@ -121,3 +121,18 @@ class ArrayType(BasicType):
     items: JustSchema = attr.ib(default=None)
     minItems: Optional[int] = None
     maxItems: Optional[int] = None
+
+
+@attr.s(auto_attribs=True)
+class AnyOfType(JustSchema):
+    anyOf: Iterable[JustSchema] = attr.ib(factory=list)
+
+
+@attr.s(auto_attribs=True)
+class OneOfType(JustSchema):
+    oneOf: Iterable[JustSchema] = attr.ib(factory=list)
+
+
+@attr.s(auto_attribs=True)
+class AllOfType(JustSchema):
+    allOf: Iterable[JustSchema] = attr.ib(factory=list)

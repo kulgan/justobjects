@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Dict, Iterable, List
 
 import justobjects as jo
 
@@ -17,6 +17,7 @@ class Actor:
     sex: str
     role: Role
     age: int = 10
+    height: float = 10.0
 
 
 @jo.data()
@@ -40,3 +41,14 @@ class Movie:
 class Manager:
     actors: Iterable[Actor]
     movies: List[Movie]
+    personal: Dict[str, Actor]
+
+
+@jo.data()
+class RoleManager:
+    roles = jo.array(item=Role, min_items=1)
+    people = jo.any_of(types=[Actor, Manager])
+
+
+class Unknown:
+    name: str

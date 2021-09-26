@@ -1,16 +1,19 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Iterable, Optional, Type, cast
+from typing import Any, Callable, Iterable, Optional, Type
 
 import attr
 
 from justobjects import schemas, typings
 from justobjects.jsontypes import (
+    AllOfType,
+    AnyOfType,
     ArrayType,
     BooleanType,
     IntegerType,
     NumericType,
     ObjectType,
+    OneOfType,
     RefType,
     StringType,
 )
@@ -217,4 +220,40 @@ def array(
     if item_type.type == "object":
         ref_type = RefType(ref=f"#/definitions/{item.__module__}.{item.__name__}")
     sc = ArrayType(items=ref_type or item_type, minItems=min_items, maxItems=max_items)
+    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def any_of(
+    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+) -> attr.Attribute:
+    """JSON schema anyOf"""
+
+    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
+    sc = AnyOfType(anyOf=items)
+    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def one_of(
+    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+) -> attr.Attribute:
+    """Applies to properties and complies with JSON schema oneOf property
+    Args:
+        types (list[type]): list of types that will be allowed
+        default (object): default object instance that must be one of the allowed types
+        required: True if property is required
+    Returns:
+        attr.ib: field instance
+    """
+    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
+    sc = OneOfType(oneOf=items)
+    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def all_of(
+    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+) -> attr.Attribute:
+    """JSON schema allOf"""
+
+    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
+    sc = AllOfType(allOf=items)
     return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})

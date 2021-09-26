@@ -36,3 +36,10 @@ def test_numeric_type() -> None:
     assert js["default"] == 10
     assert js["maximum"] == 100
     assert js["multipleOf"] == 2
+
+
+def test_oneof_type() -> None:
+    obj = jsontypes.OneOfType(
+        oneOf=[jsontypes.StringType, jsontypes.IntegerType, jsontypes.BasicType]
+    )
+    print(obj.json_schema())

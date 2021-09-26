@@ -48,7 +48,7 @@ def add(cls: Any, obj: ObjectType) -> None:
 def get(cls: Type) -> ObjectType:
     cls_name = f"{cls.__module__}.{cls.__name__}"
     if cls_name not in JUST_OBJECTS:
-        raise ValueError("Unknown data object")
+        raise ValueError(f"Unknown data object type '{cls_name}'")
     return JUST_OBJECTS[cls_name]
 
 
@@ -109,5 +109,12 @@ def get_typed(cls: GenericMeta) -> BasicType:
             ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
         return ArrayType(items=ref or obj)
     if cls.__name__ in ["Dict", "Mapping"]:
+        # TODO: use wildcard properties and resolve type
         return ObjectType(additionalProperties=True)
     raise ValueError(f"Unknown data type {cls}")
+
+
+def as_ref(obj_cls: Type, obj: BasicType) -> Union[BasicType, RefType]:
+    if obj.type != "object":
+        return obj
+    return RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")

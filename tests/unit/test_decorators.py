@@ -3,7 +3,7 @@ import json
 import pytest
 
 from justobjects import schemas
-from tests.models import Actor, Manager, Movie, Role
+from tests.models import Actor, Manager, Movie, Role, Unknown
 
 
 def test_show_isolated_model() -> None:
@@ -42,3 +42,9 @@ def test_show_array_type() -> None:
     js = schemas.show(Manager)
 
     print(json.dumps(js, indent=2))
+
+
+def test_unknown_model() -> None:
+    with pytest.raises(ValueError) as v:
+        schemas.show(Unknown)
+    assert v.value
