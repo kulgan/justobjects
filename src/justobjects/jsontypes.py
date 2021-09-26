@@ -83,6 +83,7 @@ def validate_multiple_of(instance: Any, attribute: attr.Attribute, value: int) -
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
     """The number type is used for any numeric type, either integers or floating point numbers."""
+
     type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[float] = None
     enum: List[int] = attr.ib(factory=list)
@@ -96,6 +97,7 @@ class NumericType(BasicType):
 @attr.s(auto_attribs=True)
 class IntegerType(NumericType):
     """The integer type is used for integral numbers"""
+
     type: SchemaDataType = attr.ib(default="integer", init=False)
 
 
