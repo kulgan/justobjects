@@ -99,4 +99,6 @@ def get_type(cls: Type) -> BasicType:
         return IntegerType()
     if cls in (bool, BooleanType):
         return BooleanType()
+    if issubclass(cls, StringType):
+        return cls()
     return get(cls)

@@ -75,7 +75,7 @@ class BooleanType(BasicType):
     default: Optional[bool] = None
 
 
-def validate_multiple_of(instance: Any, attribute: attr.Attribute, value: int) -> None:
+def validate_positive(instance: Any, attribute: attr.Attribute, value: int) -> None:
     if value and value < 1:
         raise ValueError("multipleOf must be set to a positive number")
 
@@ -89,7 +89,7 @@ class NumericType(BasicType):
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
     minimum: Optional[int] = None
-    multipleOf: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
+    multipleOf: Optional[int] = attr.ib(default=None, validator=validate_positive)
     exclusiveMaximum: Optional[int] = None
     exclusiveMinimum: Optional[int] = None
 
@@ -103,12 +103,65 @@ class IntegerType(NumericType):
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
+    """The string type is used for strings of text."""
+
     type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
     enum: Iterable[str] = attr.ib(factory=list)
-    maxLength: Optional[int] = None
-    minLength: Optional[int] = None
+    maxLength: Optional[int] = attr.ib(default=None, validator=validate_positive)
+    minLength: Optional[int] = attr.ib(default=None, validator=validate_positive)
     pattern: Optional[str] = None
+    format: Optional[str] = None
+
+
+@attr.s(auto_attribs=True)
+class DateTimeType(StringType):
+    format: str = attr.ib(init=False, default="data-time")
+
+
+@attr.s(auto_attribs=True)
+class TimeType(StringType):
+    format: str = attr.ib(init=False, default="time")
+
+
+@attr.s(auto_attribs=True)
+class DateType(StringType):
+    format: str = attr.ib(init=False, default="data")
+
+
+@attr.s(auto_attribs=True)
+class DurationType(StringType):
+    format: str = attr.ib(init=False, default="duration")
+
+
+@attr.s(auto_attribs=True)
+class EmailType(StringType):
+    format: str = attr.ib(init=False, default="email")
+
+
+@attr.s(auto_attribs=True)
+class HostnameType(StringType):
+    format: str = attr.ib(init=False, default="hostname")
+
+
+@attr.s(auto_attribs=True)
+class Ipv4Type(StringType):
+    format: str = attr.ib(init=False, default="ipv4")
+
+
+@attr.s(auto_attribs=True)
+class Ipv6Type(StringType):
+    format: str = attr.ib(init=False, default="ipv6")
+
+
+@attr.s(auto_attribs=True)
+class UriType(StringType):
+    format: str = attr.ib(init=False, default="uri")
+
+
+@attr.s(auto_attribs=True)
+class UuidType(StringType):
+    format: str = attr.ib(init=False, default="uuid")
 
 
 @attr.s(auto_attribs=True)
