@@ -140,7 +140,7 @@ def ref(
 
 
 def numeric(
-    default: Optional[int] = None,
+    default: Optional[float] = None,
     minimum: Optional[int] = None,
     maximum: Optional[int] = None,
     multiple_of: Optional[int] = None,
@@ -149,7 +149,7 @@ def numeric(
     required: Optional[bool] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
-    """Create a schema of type number"""
+    """The number type is used for any numeric type, either integers or floating point numbers."""
 
     sc = NumericType(
         minimum=minimum,
@@ -173,7 +173,7 @@ def integer(
     required: Optional[bool] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
-    """Create a schema of type integer"""
+    """The integer type is used for integral numbers"""
 
     sc = IntegerType(
         minimum=minimum,

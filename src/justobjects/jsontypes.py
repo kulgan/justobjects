@@ -75,20 +75,27 @@ class BooleanType(BasicType):
     default: Optional[bool] = None
 
 
+def validate_multiple_of(instance: Any, attribute: attr.Attribute, value: int) -> None:
+    if value and value < 1:
+        raise ValueError("multipleOf must be set to a positive number")
+
+
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
+    """The number type is used for any numeric type, either integers or floating point numbers."""
     type: SchemaDataType = attr.ib(default="number", init=False)
-    default: Optional[int] = None
+    default: Optional[float] = None
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[int] = None
     minimum: Optional[int] = None
-    multipleOf: Optional[int] = None
+    multipleOf: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
     exclusiveMaximum: Optional[int] = None
     exclusiveMinimum: Optional[int] = None
 
 
 @attr.s(auto_attribs=True)
 class IntegerType(NumericType):
+    """The integer type is used for integral numbers"""
     type: SchemaDataType = attr.ib(default="integer", init=False)
 
 
