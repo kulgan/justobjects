@@ -3,20 +3,20 @@ from pkg_resources import get_distribution
 from justobjects.decorators import boolean, data, integer, numeric, ref, string
 from justobjects.jsontypes import (
     BasicType,
-    DateType,
     DateTimeType,
+    DateType,
     DurationType,
     EmailType,
     HostnameType,
+    IntegerType,
     Ipv4Type,
     Ipv6Type,
-    TimeType,
-    UriType,
-    UuidType,
-    IntegerType,
     NumericType,
     ObjectType,
     RefType,
+    TimeType,
+    UriType,
+    UuidType,
 )
 from justobjects.schemas import (
     ValidationError,
