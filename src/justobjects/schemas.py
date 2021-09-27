@@ -157,7 +157,7 @@ def get_typed(cls: GenericMeta) -> BasicType:
         obj_cls = cls.__args__[0]  # type: ignore
         ref = None
         obj = get_type(obj_cls)
-        if obj.type == "object":
+        if isinstance(obj, ObjectType):
             ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
         return ArrayType(items=ref or obj)
     if cls.__name__ in ["Dict", "Mapping"]:
@@ -166,7 +166,7 @@ def get_typed(cls: GenericMeta) -> BasicType:
     raise ValueError(f"Unknown data type {cls}")
 
 
-def as_ref(obj_cls: Type, obj: BasicType) -> Union[BasicType, RefType]:
-    if obj.type != "object":
+def as_ref(obj_cls: Type, obj: JustSchema) -> Union[BasicType, RefType]:
+    if isinstance(obj, ObjectType):
         return obj
     return RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")

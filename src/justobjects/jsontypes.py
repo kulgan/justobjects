@@ -132,8 +132,10 @@ class ObjectType(BasicType):
 class ArrayType(BasicType):
     type: SchemaDataType = attr.ib(default="array", init=False)
     items: JustSchema = attr.ib(default=None)
+    contains: JustSchema = attr.ib(default=None)
     minItems: Optional[int] = None
     maxItems: Optional[int] = None
+    uniqueItems: Optional[bool] = False
 
 
 @attr.s(auto_attribs=True)

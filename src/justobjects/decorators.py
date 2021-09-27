@@ -243,18 +243,35 @@ def boolean(
 
 def array(
     item: Type,
-    default: Optional[Any] = None,
+    contains: bool = False,
     min_items: Optional[int] = None,
     max_items: Optional[int] = None,
     required: bool = False,
 ) -> attr.Attribute:
-    """Array data type"""
+    """Array schema data type
+
+    If `item` is the class type of another data object, it will be converted to a reference
+
+    Args:
+        item: data object class type used as items in the array
+        contains: schema only needs to validate against one or more items in the array.
+        min_items: positive integer representing the minimum number of items that can be on the array
+        max_items: positive integer representing the maximum number of items that can be on the array
+        required: True if field is required
+    Returns:
+        A array attribute wrapper
+    """
     ref_type = None
     item_type = schemas.get_type(item)
-    if item_type.type == "object":
+    if isinstance(item_type, ObjectType):
         ref_type = RefType(ref=f"#/definitions/{item.__module__}.{item.__name__}")
-    sc = ArrayType(items=ref_type or item_type, minItems=min_items, maxItems=max_items)
-    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    _type = ref_type or item_type
+
+    if contains:
+        sc = ArrayType(contains=_type, minItems=min_items, maxItems=max_items)
+    else:
+        sc = ArrayType(items=_type, minItems=min_items, maxItems=max_items)
+    return attr.ib(type=list, factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
 def any_of(
