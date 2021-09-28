@@ -22,7 +22,11 @@ def camel_case(snake_case: str) -> str:
 
 
 class JustSchema:
+    """A marker denoting a json type"""
+
     def json_schema(self) -> Dict[str, Any]:
+        """Converts object instances to json schema"""
+
         return parse_dict(self.__dict__)
 
 
@@ -132,11 +136,26 @@ class ObjectType(BasicType):
 
 @attr.s(auto_attribs=True)
 class ArrayType(BasicType):
+    """Json schema array type object.
+
+    This can be used to represent python iterables like list and set.
+    NB: use of tuples is currently not supported
+
+    Attributes:
+        items: Json schema for the items within the array. This schema will be used to
+            validate all of the items in the array
+        contains: Json schema used to validate items within the array, the difference with items is
+            that it only needs to validate against one or more items
+        minItems: positive integer representing the minimum number of elements that can be on the array
+        maxItems: positive integer representing the maximum number of elements that can be on the array
+        uniqueItems: setting this to True, ensures only uniqueItems are found in the array
+    """
+
     type: SchemaDataType = attr.ib(default="array", init=False)
     items: JustSchema = attr.ib(default=None)
     contains: JustSchema = attr.ib(default=None)
-    minItems: Optional[int] = None
-    maxItems: Optional[int] = None
+    minItems: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
+    maxItems: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
     uniqueItems: Optional[bool] = False
 
 
