@@ -18,6 +18,7 @@ class Actor:
     role: Role
     age: int = 10
     height: float = 10.0
+    married: bool = False
 
 
 @jo.data()
@@ -47,7 +48,10 @@ class Manager:
 @jo.data()
 class RoleManager:
     roles = jo.array(item=Role, min_items=1)
+    allowed = jo.array(item=Role, contains=True, min_items=1)
     people = jo.any_of(types=[Actor, Manager])
+    names = jo.one_of(types=[jo.StringType, jo.IntegerType])
+    requires = jo.must_not(item=jo.BooleanType)
 
 
 class Unknown:

@@ -1,3 +1,5 @@
+from typing import Type, Union
+
 import pytest
 
 from justobjects import jsontypes
@@ -20,7 +22,7 @@ def test_mixin__json_schema() -> None:
     obj = jsontypes.ObjectType(additionalProperties=True)
     obj.properties["label"] = jsontypes.StringType(default="skin", maxLength=10)
     obj.add_required("label")
-    js = obj.json_schema()
+    js = obj.as_dict()
 
     assert js["type"] == "object"
     assert js["additionalProperties"] is True
@@ -30,7 +32,7 @@ def test_mixin__json_schema() -> None:
 
 def test_numeric_type() -> None:
     obj = jsontypes.NumericType(default=10, maximum=100, multipleOf=2)
-    js = obj.json_schema()
+    js = obj.as_dict()
 
     assert js["type"] == "number"
     assert js["default"] == 10
@@ -38,8 +40,35 @@ def test_numeric_type() -> None:
     assert js["multipleOf"] == 2
 
 
-def test_oneof_type() -> None:
+def test_one_of_type() -> None:
     obj = jsontypes.OneOfType(
-        oneOf=[jsontypes.StringType, jsontypes.IntegerType, jsontypes.BasicType]
+        oneOf=(jsontypes.StringType(), jsontypes.IntegerType(), jsontypes.BooleanType())
     )
-    print(obj.json_schema())
+    jo = obj.as_dict()
+    assert len(jo["oneOf"]) == 3
+
+
+def test_any_of_type() -> None:
+    obj = jsontypes.AnyOfType(
+        anyOf=(jsontypes.StringType(), jsontypes.IntegerType(), jsontypes.BooleanType())
+    )
+    jo = obj.as_dict()
+    assert len(jo["anyOf"]) == 3
+
+
+def test_all_of_type() -> None:
+    obj = jsontypes.AllOfType(
+        allOf=(jsontypes.StringType(), jsontypes.IntegerType(), jsontypes.BooleanType())
+    )
+    jo = obj.as_dict()
+    assert len(jo["allOf"]) == 3
+
+
+@pytest.mark.parametrize("schema", [jsontypes.StringType(), jsontypes.StringType(maxLength=16)])
+def test_not_type(schema: jsontypes.JustSchema) -> None:
+    obj = jsontypes.NotType(mustNot=schema)
+    js = obj.as_dict()
+
+    assert js["not"]
+    must_not = js["not"]
+    assert must_not["type"] == "string"

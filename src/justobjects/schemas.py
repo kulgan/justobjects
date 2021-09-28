@@ -107,7 +107,7 @@ def show(cls: Union[Type, JustSchema]) -> Dict:
             # {'minimum': 3, 'type': 'integer'}
     """
     if isinstance(cls, JustSchema):
-        return cls.json_schema()
+        return cls.as_dict()
 
     ref = cast(RefType, as_ref(cls, get(cls)))
     obj = SchemaRef(
@@ -115,7 +115,7 @@ def show(cls: Union[Type, JustSchema]) -> Dict:
         definitions=JUST_OBJECTS,
         title=f"Draft7 JustObjects schema for {cls.__name__}",
     )
-    return obj.json_schema()
+    return obj.as_dict()
 
 
 def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:

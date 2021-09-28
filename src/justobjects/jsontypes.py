@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Type, Union
 
 import attr
 
@@ -8,6 +8,7 @@ from justobjects import typings
 SchemaDataType = typings.Literal[
     "null", "array", "boolean", "object", "array", "number", "integer", "string"
 ]
+J = Union["JustSchema", Type["JustSchema"]]
 
 
 def camel_case(snake_case: str) -> str:
@@ -24,7 +25,7 @@ def camel_case(snake_case: str) -> str:
 class JustSchema:
     """A marker denoting a json type"""
 
-    def json_schema(self) -> Dict[str, Any]:
+    def as_dict(self) -> Dict[str, Any]:
         """Converts object instances to json schema"""
 
         return parse_dict(self.__dict__)
@@ -52,7 +53,7 @@ def as_dict(val: Any) -> Any:
     """Attempts to recursively convert any object to a dictionary"""
 
     if isinstance(val, JustSchema):
-        return val.json_schema()
+        return val.as_dict()
     if isinstance(val, (list, set, tuple)):
         return [as_dict(v) for v in val]
     if isinstance(val, collections.Mapping):
@@ -102,7 +103,15 @@ class NumericType(BasicType):
 
 @attr.s(auto_attribs=True)
 class IntegerType(NumericType):
-    """The integer type is used for integral numbers"""
+    """The integer type is used for integral numbers
+
+    Attributes:
+        type (str): static value integer
+        maximum (int): maximum possible value
+        minimum (int): the minimum possible value
+        exclusiveMaximum (int): the maximum possible value that cannot be reached
+        exclusiveMinimu (int): the minimum possible value that cannot be reached
+    """
 
     type: SchemaDataType = attr.ib(default="integer", init=False)
     maximum: Optional[int] = None
@@ -126,7 +135,7 @@ class ObjectType(BasicType):
     type: SchemaDataType = attr.ib(default="object", init=False)
     additionalProperties: bool = False
     required: List[str] = attr.ib(factory=list)
-    properties: Dict[str, JustSchema] = attr.ib(factory=dict)
+    properties: Dict[str, J] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
@@ -142,6 +151,7 @@ class ArrayType(BasicType):
     NB: use of tuples is currently not supported
 
     Attributes:
+        type (str): static string with value 'array'
         items: Json schema for the items within the array. This schema will be used to
             validate all of the items in the array
         contains: Json schema used to validate items within the array, the difference with items is
@@ -161,14 +171,30 @@ class ArrayType(BasicType):
 
 @attr.s(auto_attribs=True)
 class AnyOfType(JustSchema):
+    """Json anyOf schema, entries must be valid against exactly one of the subschemas"""
+
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
 
 
 @attr.s(auto_attribs=True)
 class OneOfType(JustSchema):
+    """Json oneOf schema, entries must be valid against any of the subschemas"""
+
     oneOf: Iterable[JustSchema] = attr.ib(factory=list)
 
 
 @attr.s(auto_attribs=True)
 class AllOfType(JustSchema):
+    """Json allOf schema, entries must be valid against all of the subschemas"""
+
     allOf: Iterable[JustSchema] = attr.ib(factory=list)
+
+
+@attr.s(auto_attribs=True)
+class NotType(JustSchema):
+    """The not keyword declares that an instance validates if it doesn’t validate against the given subschema."""
+
+    mustNot: JustSchema
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {"not": self.mustNot.as_dict()}

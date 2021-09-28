@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Iterable, Optional, Type
+from typing import Any, Callable, Iterable, Optional, Type, Union
 
 import attr
 
@@ -11,6 +11,8 @@ from justobjects.jsontypes import (
     ArrayType,
     BooleanType,
     IntegerType,
+    JustSchema,
+    NotType,
     NumericType,
     ObjectType,
     OneOfType,
@@ -308,3 +310,9 @@ def all_of(
     items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
     sc = AllOfType(allOf=items)
     return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+
+
+def must_not(item: Type) -> attr.Attribute:
+    obj = schemas.get_type(item)
+    sc = NotType(mustNot=obj)
+    return attr.ib(type=dict, default=None, metadata={JO_SCHEMA: sc})
