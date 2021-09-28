@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Dict, GenericMeta, Iterable, List, Type, Union  # type: ignore
+from typing import Any, AnyStr, Dict, Iterable, List, Mapping, Set, Type, Union
 
 import attr
 from jsonschema import Draft7Validator
@@ -14,9 +14,15 @@ from justobjects.jsontypes import (
     ObjectType,
     RefType,
     StringType,
-    value_to_dict,
+    as_dict,
 )
 
+BOOLS = (bool, BooleanType)
+INTEGERS = (int, IntegerType)
+ITERABLES = (Iterable, List, Set)
+NUMERICS = (float, NumericType)
+OBJECTS = (object, Dict, Mapping)
+STRINGS = (str, AnyStr, StringType)
 JUST_OBJECTS: Dict[str, ObjectType] = {}
 
 __all__ = [
@@ -135,38 +141,47 @@ def validate_raw(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
 
 
 def validate(node: Any) -> None:
-    validate_raw(node.__class__, value_to_dict(node))
+    validate_raw(node.__class__, as_dict(node))
 
 
 def get_type(cls: Type) -> JustSchema:
-    if isinstance(cls, GenericMeta):
+    # generics
+    if hasattr(cls, "__origin__"):
         return get_typed(cls)
-    if cls in (str, StringType):
+
+    # capture all custom json types
+    if issubclass(cls, JustSchema):
+        return cls()
+
+    if cls in STRINGS:
         return StringType()
-    if cls in (float, NumericType):
+    if cls in NUMERICS:
         return NumericType()
-    if cls in (int, IntegerType):
+    if cls in INTEGERS:
         return IntegerType()
-    if cls in (bool, BooleanType):
+    if cls in BOOLS:
         return BooleanType()
     return get(cls)
 
 
-def get_typed(cls: GenericMeta) -> BasicType:
-    if cls.__name__ in ["Iterable", "List", "Set"]:
+def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
+    if not hasattr(cls, "__origin__"):
+        raise ValueError()
+
+    if cls.__origin__ in ITERABLES:
         obj_cls = cls.__args__[0]  # type: ignore
         ref = None
         obj = get_type(obj_cls)
         if isinstance(obj, ObjectType):
             ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
-        return ArrayType(items=ref or obj)
-    if cls.__name__ in ["Dict", "Mapping"]:
+        return ArrayType(items=ref or obj, uniqueItems=cls == Set)
+    if cls.__origin__ in OBJECTS:
         # TODO: use wildcard properties and resolve type
         return ObjectType(additionalProperties=True)
     raise ValueError(f"Unknown data type {cls}")
 
 
 def as_ref(obj_cls: Type, obj: JustSchema) -> Union[BasicType, RefType]:
-    if isinstance(obj, ObjectType):
+    if not isinstance(obj, ObjectType):
         return obj
     return RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")

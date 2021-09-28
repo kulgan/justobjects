@@ -38,17 +38,19 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
         # map ref
         if k == "ref":
             k = "$ref"
-        dict_val = value_to_dict(v)
+        dict_val = as_dict(v)
         if dict_val or isinstance(dict_val, bool):
             parsed[k] = dict_val
     return parsed
 
 
-def value_to_dict(val: Any) -> Any:
+def as_dict(val: Any) -> Any:
+    """Attempts to recursively convert any object to a dictionary"""
+
     if isinstance(val, JustSchema):
         return val.json_schema()
     if isinstance(val, (list, set, tuple)):
-        return [value_to_dict(v) for v in val]
+        return [as_dict(v) for v in val]
     if isinstance(val, collections.Mapping):
         return parse_dict(val)
     if hasattr(val, "__dict__"):
