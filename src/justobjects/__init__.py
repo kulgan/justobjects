@@ -27,9 +27,9 @@ from justobjects.jsontypes import (
 from justobjects.schemas import (
     ValidationError,
     ValidationException,
+    is_valid,
+    is_valid_data,
     show,
-    validate,
-    validate_raw,
 )
 
 VERSION = get_distribution(__name__).version
@@ -45,8 +45,8 @@ __all__ = [
     "one_of",
     "ref",
     "show",
-    "validate",
-    "validate_raw",
+    "is_valid",
+    "is_valid_data",
     "string",
     "AllOfType",
     "AnyOfType",

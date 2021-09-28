@@ -1,5 +1,5 @@
 import functools
-from typing import Any, AnyStr, Dict, Iterable, List, Mapping, Set, Type, Union
+from typing import Any, AnyStr, Dict, Iterable, List, Mapping, Set, Type, Union, cast
 
 import attr
 from jsonschema import Draft7Validator
@@ -19,9 +19,11 @@ from justobjects.jsontypes import (
 
 BOOLS = (bool, BooleanType)
 INTEGERS = (int, IntegerType)
-ITERABLES = (Iterable, List, Set)
+ITERABLES = (list, set)
 NUMERICS = (float, NumericType)
-OBJECTS = (object, Dict, Mapping)
+OBJECTS = (object, dict)
+TYPED_ITERABLES = (Iterable, List, Set)
+TYPED_OBJECTS = (Dict, Mapping)
 STRINGS = (str, AnyStr, StringType)
 JUST_OBJECTS: Dict[str, ObjectType] = {}
 
@@ -29,21 +31,19 @@ __all__ = [
     "get",
     "get_type",
     "show",
-    "validate",
-    "validate_raw",
+    "is_valid",
+    "is_valid_data",
     "ValidationError",
     "ValidationException",
 ]
 
 
-@functools.lru_cache()
-def definitions(cls_name: str) -> Dict[str, Dict[str, Any]]:
-    defs: Dict[str, Any] = {}
-    for label, entry in JUST_OBJECTS.items():
-        if label == cls_name:
-            continue
-        defs[label] = entry.json_schema()
-    return defs
+@attr.s(auto_attribs=True)
+class SchemaRef(RefType):
+    type: str = attr.ib(init=False, default="object")
+    title: str = "Draft7 JustObjects schema"
+    additionalProperties: bool = False
+    definitions: Dict[str, ObjectType] = attr.ib(factory=dict)
 
 
 @attr.s(frozen=True, auto_attribs=True)
@@ -109,13 +109,13 @@ def show(cls: Union[Type, JustSchema]) -> Dict:
     if isinstance(cls, JustSchema):
         return cls.json_schema()
 
-    obj = get(cls)
-    cls_name = f"{cls.__module__}.{cls.__name__}"
-    raw = obj.json_schema()
-    defs = definitions(cls_name)
-    if defs:
-        raw["definitions"] = defs
-    return raw
+    ref = cast(RefType, as_ref(cls, get(cls)))
+    obj = SchemaRef(
+        ref=ref.ref,
+        definitions=JUST_OBJECTS,
+        title=f"Draft7 JustObjects schema for {cls.__name__}",
+    )
+    return obj.json_schema()
 
 
 def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:
@@ -126,7 +126,29 @@ def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationE
     return errors
 
 
-def validate_raw(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
+def is_valid_data(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
+    """Validates if a data sample is valid for the given data object type
+
+    This is best suited for validating existing json data without having to creating instances of
+    the model
+
+    Args:
+        cls: data object type with schema defined
+        data: dictionary or list of data instances that needs to be validated
+    Raises:
+        ValidationException
+    Examples:
+       .. code-block:: python
+
+          import justobjects as jo
+
+          @jo.data()
+          class Model:
+            a = jo.integer(minimum=18)
+            b = jo.boolean()
+
+          is_valid_data(Model, {"a":4, "b":True})
+    """
     schema = show(cls)
     validator = Draft7Validator(schema=schema)
 
@@ -140,8 +162,26 @@ def validate_raw(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
         raise ValidationException(errors=errors)
 
 
-def validate(node: Any) -> None:
-    validate_raw(node.__class__, as_dict(node))
+def is_valid(node: Any) -> None:
+    """Validates an object instance against its associated json schema
+
+    Args:
+        node: a data object instance
+    Raises:
+        ValidationException: when there errors
+    Examples:
+        .. code-block:: python
+
+          import justobjects as jo
+
+          @jo.data()
+          class Model:
+            a = jo.integer(minimum=18)
+            b = jo.boolean()
+
+          is_valid(Model(a=4, b=True)
+    """
+    is_valid_data(node.__class__, as_dict(node))
 
 
 def get_type(cls: Type) -> JustSchema:
@@ -161,6 +201,11 @@ def get_type(cls: Type) -> JustSchema:
         return IntegerType()
     if cls in BOOLS:
         return BooleanType()
+    if cls in ITERABLES:
+        is_set = cls == set
+        return ArrayType(items=StringType(), uniqueItems=is_set)
+    if cls in OBJECTS:
+        return ObjectType(additionalProperties=True)
     return get(cls)
 
 
@@ -168,20 +213,21 @@ def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
     if not hasattr(cls, "__origin__"):
         raise ValueError()
 
-    if cls.__origin__ in ITERABLES:
-        obj_cls = cls.__args__[0]  # type: ignore
+    if cls.__origin__ in TYPED_ITERABLES:
+        obj_cls = cls.__args__[0]
         ref = None
+        is_set = cls == Set
         obj = get_type(obj_cls)
         if isinstance(obj, ObjectType):
             ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
-        return ArrayType(items=ref or obj, uniqueItems=cls == Set)
-    if cls.__origin__ in OBJECTS:
+        return ArrayType(items=ref or obj, uniqueItems=is_set)
+    if cls.__origin__ in TYPED_OBJECTS:
         # TODO: use wildcard properties and resolve type
         return ObjectType(additionalProperties=True)
     raise ValueError(f"Unknown data type {cls}")
 
 
-def as_ref(obj_cls: Type, obj: JustSchema) -> Union[BasicType, RefType]:
+def as_ref(obj_cls: Type, obj: JustSchema) -> JustSchema:
     if not isinstance(obj, ObjectType):
         return obj
     return RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")

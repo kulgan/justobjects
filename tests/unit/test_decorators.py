@@ -16,7 +16,7 @@ def test_show_isolated_model() -> None:
 def test_validate_isolated_model() -> None:
     actor = Actor(name="Same", sex="Male", age=10, role=Role(name="Simons", race="white"))
     assert actor.__dict__
-    schemas.validate(actor)
+    schemas.is_valid(actor)
 
 
 def test_show_nested_object_property() -> None:
@@ -32,7 +32,7 @@ def test_validate_nested_object() -> None:
     movie = Movie(main=actor, title="T")
 
     with pytest.raises(schemas.ValidationException) as v:
-        schemas.validate(movie)
+        schemas.is_valid(movie)
     assert len(v.value.errors) == 1
     error = v.value.errors[0]
     assert error.element == "title"

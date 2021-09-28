@@ -51,4 +51,4 @@ class RoleManager:
 
 
 class Unknown:
-    name: str
+    name: set
