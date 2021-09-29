@@ -49,3 +49,7 @@ def test_unknown_model() -> None:
     with pytest.raises(ValueError) as v:
         schemas.show(Unknown)
     assert v.value
+
+
+if __name__ == '__main__':
+    schemas.show(Manager)

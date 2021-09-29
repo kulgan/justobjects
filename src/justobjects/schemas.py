@@ -1,4 +1,4 @@
-import functools
+from collections import abc as ca
 from typing import Any, AnyStr, Dict, Iterable, List, Mapping, Set, Type, Union, cast
 
 import attr
@@ -16,14 +16,15 @@ from justobjects.jsontypes import (
     StringType,
     as_dict,
 )
+from justobjects.typings import is_generic_type
 
 BOOLS = (bool, BooleanType)
 INTEGERS = (int, IntegerType)
 ITERABLES = (list, set)
 NUMERICS = (float, NumericType)
 OBJECTS = (object, dict)
-TYPED_ITERABLES = (Iterable, List, Set)
-TYPED_OBJECTS = (Dict, Mapping)
+TYPED_ITERABLES_ORIGINS = (Iterable, ca.Iterable, list, List, set, Set)
+TYPED_OBJECTS_ORIGINS = (dict, Dict, Mapping)
 STRINGS = (str, AnyStr, StringType)
 JUST_OBJECTS: Dict[str, ObjectType] = {}
 
@@ -186,7 +187,7 @@ def is_valid(node: Any) -> None:
 
 def get_type(cls: Type) -> JustSchema:
     # generics
-    if hasattr(cls, "__origin__"):
+    if is_generic_type(cls):
         return get_typed(cls)
 
     # capture all custom json types
@@ -210,10 +211,10 @@ def get_type(cls: Type) -> JustSchema:
 
 
 def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
-    if not hasattr(cls, "__origin__"):
+    if not is_generic_type(cls):
         raise ValueError()
-
-    if cls.__origin__ in TYPED_ITERABLES:
+    # print(cls.__origin__)
+    if cls.__origin__ in TYPED_ITERABLES_ORIGINS:
         obj_cls = cls.__args__[0]
         ref = None
         is_set = cls == Set
@@ -221,9 +222,11 @@ def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
         if isinstance(obj, ObjectType):
             ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
         return ArrayType(items=ref or obj, uniqueItems=is_set)
-    if cls.__origin__ in TYPED_OBJECTS:
+    if cls.__origin__ in TYPED_OBJECTS_ORIGINS:
         # TODO: use wildcard properties and resolve type
-        return ObjectType(additionalProperties=True)
+        _, val_type = cls.__args__
+        obj = as_ref(val_type, get_type(val_type))
+        return ObjectType(patternProperties={"^.*$": obj}, additionalProperties=True)
     raise ValueError(f"Unknown data type {cls}")
 
 

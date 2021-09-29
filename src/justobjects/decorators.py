@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Iterable, Optional, Type, Union
+from typing import Any, Callable, Iterable, Optional, Type
 
 import attr
 
@@ -11,7 +11,6 @@ from justobjects.jsontypes import (
     ArrayType,
     BooleanType,
     IntegerType,
-    JustSchema,
     NotType,
     NumericType,
     ObjectType,
@@ -49,7 +48,7 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
         if is_required:
             sc.add_required(field_name)
 
-        if not isinstance(psc, ObjectType):
+        if not isinstance(psc, ObjectType) or typings.is_generic_type(cls_type):
             sc.properties[field_name] = psc
             continue
 

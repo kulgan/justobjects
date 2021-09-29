@@ -135,7 +135,8 @@ class ObjectType(BasicType):
     type: SchemaDataType = attr.ib(default="object", init=False)
     additionalProperties: bool = False
     required: List[str] = attr.ib(factory=list)
-    properties: Dict[str, J] = attr.ib(factory=dict)
+    properties: Dict[str, JustSchema] = attr.ib(factory=dict)
+    patternProperties: Dict[str, JustSchema] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
