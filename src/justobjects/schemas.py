@@ -36,6 +36,7 @@ def add(cls: Any, obj: ObjectType) -> None:
 def get(cls: Type) -> ObjectType:
     cls_name = f"{cls.__module__}.{cls.__name__}"
     if cls_name not in JUST_OBJECTS:
+        print(cls_name)
         raise ValueError("Unknown data object")
     return JUST_OBJECTS[cls_name]
 
@@ -60,7 +61,8 @@ def show(cls: Type) -> Dict:
             entries.append(psc)
             definitions[ref] = psc.json_schema()
     raw = obj.json_schema()
-    raw["definitions"] = definitions
+    if definitions:
+        raw["definitions"] = definitions
     return raw
 
 

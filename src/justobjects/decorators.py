@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Callable, Iterable, Optional, Type, cast
+from typing import Callable, Iterable, List, Optional, Type, cast
 
 import attr
 
@@ -87,7 +87,9 @@ def string(
     required: bool = False,
     min_length: Optional[int] = None,
     max_length: Optional[int] = None,
-    enums: Optional[Iterable[str]] = None,
+    enums: List[str] = None,
+    str_format: Optional[str] = None,
+    pattern: Optional[str] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
     """Creates a json schema of type string
@@ -96,20 +98,20 @@ def string(
         required: True if it should be required in the schema
         min_length: minimum length of the string
         max_length: maximum length of the string
+        str_format: string format
+        pattern: regex pattern for value matching
         enums: represent schema as an enum instead of free text
         description: Property description
     Returns:
         attr field definition
     """
-    enum_vals = enums or []
-    if isinstance(enums, enum.Enum):
-        if enums.member_type != str:
-            raise ValueError("Invalid enum")
     sc = StringType(
         minLength=min_length,
         maxLength=max_length,
-        enum=enum_vals,
+        enum=enums,
         default=default,
+        format=str_format,
+        pattern=pattern,
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})

@@ -107,7 +107,7 @@ class StringType(BasicType):
 
     type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
-    enum: Iterable[str] = attr.ib(factory=list)
+    enum: List[str] = attr.ib(factory=list)
     maxLength: Optional[int] = attr.ib(default=None, validator=validate_positive)
     minLength: Optional[int] = attr.ib(default=None, validator=validate_positive)
     pattern: Optional[str] = None
