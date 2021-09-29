@@ -1,3 +1,5 @@
+from typing import Dict, Iterable, List
+
 import justobjects as jo
 
 
@@ -15,6 +17,8 @@ class Actor:
     sex: str
     role: Role
     age: int = 10
+    height: float = 10.0
+    married: bool = False
 
 
 @jo.data()
@@ -32,3 +36,23 @@ class Movie:
     released = jo.boolean(default=False, required=False)
     characters = jo.integer(default=100, required=False)
     budget = jo.numeric(default=100000, required=False)
+
+
+@jo.data(auto_attribs=True)
+class Manager:
+    actors: Iterable[Actor]
+    movies: List[Movie]
+    personal: Dict[str, Actor]
+
+
+@jo.data()
+class RoleManager:
+    roles = jo.array(item=Role, min_items=1)
+    allowed = jo.array(item=Role, contains=True, min_items=1)
+    people = jo.any_of(types=[Actor, Manager])
+    names = jo.one_of(types=[jo.StringType, jo.IntegerType])
+    requires = jo.must_not(item=jo.BooleanType)
+
+
+class Unknown:
+    name: set
