@@ -174,7 +174,7 @@ def numeric(
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
-        A wrapped NumbericType
+        A wrapped NumericType
     """
 
     sc = NumericType(

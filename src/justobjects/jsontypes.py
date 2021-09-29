@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
 
@@ -83,7 +83,7 @@ class BooleanType(BasicType):
 
 def validate_positive(instance: Any, attribute: attr.Attribute, value: int) -> None:
     if value and value < 1:
-        raise ValueError("multipleOf must be set to a positive number")
+        raise ValueError(f"{attribute.name} on {instance} must be set to a positive number")
 
 
 @attr.s(auto_attribs=True)
@@ -95,7 +95,7 @@ class NumericType(BasicType):
     enum: List[int] = attr.ib(factory=list)
     maximum: Optional[float] = None
     minimum: Optional[float] = None
-    multipleOf: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
+    multipleOf: Optional[int] = attr.ib(default=None, validator=validate_positive)
     exclusiveMaximum: Optional[float] = None
     exclusiveMinimum: Optional[float] = None
 
@@ -218,8 +218,8 @@ class ArrayType(BasicType):
     type: SchemaDataType = attr.ib(default="array", init=False)
     items: JustSchema = attr.ib(default=None)
     contains: JustSchema = attr.ib(default=None)
-    minItems: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
-    maxItems: Optional[int] = attr.ib(default=None, validator=validate_multiple_of)
+    minItems: Optional[int] = attr.ib(default=None, validator=validate_positive)
+    maxItems: Optional[int] = attr.ib(default=None, validator=validate_positive)
     uniqueItems: Optional[bool] = False
 
 
