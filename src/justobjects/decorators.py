@@ -97,7 +97,7 @@ def string(
     required: bool = False,
     min_length: Optional[int] = None,
     max_length: Optional[int] = None,
-    enums: List[str] = None,
+    enums: Optional[List[str]] = None,
     str_format: Optional[str] = None,
     pattern: Optional[str] = None,
     description: Optional[str] = None,
