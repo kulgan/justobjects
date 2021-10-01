@@ -25,8 +25,8 @@ except jo.schemas.ValidationException as err:
 class StringModel:
     a: jo.EmailType
     b: jo.UuidType
-    # c: Iterable[jo.TimeType]
-    # d: List[jo.Ipv4Type]
+    c: Iterable[jo.TimeType]
+    d: List[jo.Ipv4Type]
 
 
 print(jo.show(StringModel))

@@ -1,5 +1,17 @@
 from collections import abc as ca
-from typing import Any, AnyStr, Dict, Iterable, List, Mapping, Set, Type, Union, cast
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Type,
+    Union,
+    cast,
+)
 
 import attr
 from jsonschema import Draft7Validator
@@ -73,7 +85,7 @@ class ValidationException(Exception):
 
 
 def add(cls: Any, obj: ObjectType) -> None:
-    JUST_OBJECTS[f"{cls.__module__}.{cls.__name__}"] = obj
+    JUST_OBJECTS[f"{cls.__name__}"] = obj
 
 
 def get(cls: Union[Type, JustSchema]) -> JustSchema:
@@ -85,7 +97,7 @@ def get(cls: Union[Type, JustSchema]) -> JustSchema:
     if isinstance(cls, JustSchema):
         return cls
 
-    cls_name = f"{cls.__module__}.{cls.__name__}"
+    cls_name = f"{cls.__name__}"
     if cls_name not in JUST_OBJECTS:
         raise ValueError(f"Unrecognized data object class '{cls_name}'")
     return JUST_OBJECTS[cls_name]
@@ -213,24 +225,19 @@ def get_type(cls: Type) -> JustSchema:
 def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
     if not is_generic_type(cls):
         raise ValueError()
-    # print(cls.__origin__)
     if cls.__origin__ in TYPED_ITERABLES_ORIGINS:
         obj_cls = cls.__args__[0]
-        ref = None
         is_set = cls == Set
-        obj = get_type(obj_cls)
-        if isinstance(obj, ObjectType):
-            ref = RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
-        return ArrayType(items=ref or obj, uniqueItems=is_set)
+        ref = as_ref(cls, get_type(obj_cls))
+        return ArrayType(items=ref, uniqueItems=is_set)
     if cls.__origin__ in TYPED_OBJECTS_ORIGINS:
-        # TODO: use wildcard properties and resolve type
         _, val_type = cls.__args__
         obj = as_ref(val_type, get_type(val_type))
         return ObjectType(patternProperties={"^.*$": obj}, additionalProperties=True)
     raise ValueError(f"Unknown data type {cls}")
 
 
-def as_ref(obj_cls: Type, obj: JustSchema) -> JustSchema:
+def as_ref(obj_cls: Type, obj: JustSchema, description: Optional[str] = None) -> JustSchema:
     if not isinstance(obj, ObjectType):
         return obj
-    return RefType(ref=f"#/definitions/{obj_cls.__module__}.{obj_cls.__name__}")
+    return RefType(ref=f"#/definitions/{obj_cls.__name__}", description=description)

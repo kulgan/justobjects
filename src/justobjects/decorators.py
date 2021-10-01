@@ -53,9 +53,7 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
             continue
 
         desc = attrib.metadata.get(JO_OBJECT_DESC)
-        sc.properties[field_name] = RefType(
-            ref=f"#/definitions/{cls_type.__module__}.{cls_type.__name__}", description=desc
-        )
+        sc.properties[field_name] = schemas.as_ref(cls_type, psc, desc)
     schemas.add(cls, sc)
 
 
@@ -264,12 +262,7 @@ def array(
     Returns:
         A array attribute wrapper
     """
-    ref_type = None
-    item_type = schemas.get_type(item)
-    if isinstance(item_type, ObjectType):
-        ref_type = RefType(ref=f"#/definitions/{item.__module__}.{item.__name__}")
-    _type = ref_type or item_type
-
+    _type = schemas.as_ref(item, schemas.get_type(item))
     if contains:
         sc = ArrayType(contains=_type, minItems=min_items, maxItems=max_items)
     else:
