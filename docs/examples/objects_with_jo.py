@@ -1,3 +1,5 @@
+from typing import Iterable, List
+
 import justobjects as jo
 
 
@@ -17,3 +19,14 @@ try:
     jo.is_valid(Model(a=3.1415, b=2.72, c="123"))
 except jo.schemas.ValidationException as err:
     print(err.errors)
+
+
+@jo.data(auto_attribs=True)
+class StringModel:
+    a: jo.EmailType
+    b: jo.UuidType
+    c: Iterable[jo.TimeType]
+    d: List[jo.Ipv4Type]
+
+
+print(jo.show(StringModel))

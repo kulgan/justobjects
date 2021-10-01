@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Iterable, Optional, Type
+from typing import Any, Callable, Iterable, List, Optional, Type
 
 import attr
 
@@ -53,9 +53,7 @@ def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
             continue
 
         desc = attrib.metadata.get(JO_OBJECT_DESC)
-        sc.properties[field_name] = RefType(
-            ref=f"#/definitions/{cls_type.__module__}.{cls_type.__name__}", description=desc
-        )
+        sc.properties[field_name] = schemas.as_ref(cls_type, psc, desc)
     schemas.add(cls, sc)
 
 
@@ -97,7 +95,9 @@ def string(
     required: bool = False,
     min_length: Optional[int] = None,
     max_length: Optional[int] = None,
-    enums: Optional[Iterable[str]] = None,
+    enums: Optional[List[str]] = None,
+    str_format: Optional[str] = None,
+    pattern: Optional[str] = None,
     description: Optional[str] = None,
 ) -> attr.Attribute:
     """Creates a json schema of type string
@@ -107,20 +107,20 @@ def string(
         required: True if it should be required in the schema
         min_length: minimum length of the string
         max_length: maximum length of the string
+        str_format: string format
+        pattern: regex pattern for value matching
         enums: represent schema as an enum instead of free text
         description: Property description
     Returns:
         a string attribute wrapper
     """
-    enum_vals = enums or []
-    if isinstance(enums, enum.Enum):
-        if enums.member_type != str:
-            raise ValueError("Invalid enum")
     sc = StringType(
         minLength=min_length,
         maxLength=max_length,
-        enum=enum_vals,
+        enum=enums,
         default=default,
+        format=str_format,
+        pattern=pattern,
         description=description,
     )
     return attr.ib(type=str, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
@@ -172,7 +172,7 @@ def numeric(
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
-        A wrapped NumbericType
+        A wrapped NumericType
     """
 
     sc = NumericType(
@@ -262,12 +262,7 @@ def array(
     Returns:
         A array attribute wrapper
     """
-    ref_type = None
-    item_type = schemas.get_type(item)
-    if isinstance(item_type, ObjectType):
-        ref_type = RefType(ref=f"#/definitions/{item.__module__}.{item.__name__}")
-    _type = ref_type or item_type
-
+    _type = schemas.as_ref(item, schemas.get_type(item))
     if contains:
         sc = ArrayType(contains=_type, minItems=min_items, maxItems=max_items)
     else:

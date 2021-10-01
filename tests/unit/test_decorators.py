@@ -10,7 +10,7 @@ def test_show_isolated_model() -> None:
     js = schemas.show(Actor)
 
     assert js["type"] == "object"
-    model = js["definitions"]["tests.models.Actor"]
+    model = js["definitions"]["Actor"]
     assert model["required"] == ["name", "sex", "role"]
 
 
