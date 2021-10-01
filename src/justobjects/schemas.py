@@ -238,6 +238,6 @@ def get_typed(cls: "typing.GenericMeta") -> BasicType:  # type: ignore
 
 
 def as_ref(obj_cls: Type, obj: JustSchema, description: Optional[str] = None) -> JustSchema:
-    if not isinstance(obj, ObjectType):
+    if not isinstance(obj, ObjectType) or is_generic_type(obj_cls):
         return obj
     return RefType(ref=f"#/definitions/{obj_cls.__name__}", description=description)
