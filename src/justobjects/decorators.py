@@ -1,4 +1,3 @@
-import enum
 from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Type
 
@@ -15,7 +14,6 @@ from justobjects.jsontypes import (
     NumericType,
     ObjectType,
     OneOfType,
-    RefType,
     StringType,
 )
 
@@ -81,10 +79,8 @@ def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Ty
     """
 
     def wraps(cls: Type) -> Type:
-        sc = ObjectType(additionalProperties=False, description=cls.__doc__)
-        js = partial(extract_schema, sc=sc)
         cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
-        js(cls)
+        schemas.extract(cls)
         return cls
 
     return wraps
@@ -127,7 +123,10 @@ def string(
 
 
 def ref(
-    ref_type: Type, required: bool = False, description: Optional[str] = None
+    ref_type: Type,
+    required: bool = False,
+    description: Optional[str] = None,
+    default: Optional[Type] = attr.NOTHING,
 ) -> attr.Attribute:
     """Creates a json reference to another json object
 
@@ -135,14 +134,16 @@ def ref(
         ref_type: class type referenced
         required: True if field is required
         description: ref specific documentation/comments
+        default: default value
     Returns:
         a schema reference attribute wrapper
     """
-    obj = schemas.get(ref_type)
+    obj = schemas.get_type(ref_type)
     return attr.ib(
         type=ref_type,
+        default=default,
         metadata={
-            JO_SCHEMA: obj,
+            JO_SCHEMA: schemas.as_ref(ref_type, obj),
             JO_TYPE: ref_type,
             JO_REQUIRED: required,
             JO_OBJECT_DESC: description,
@@ -245,9 +246,10 @@ def boolean(
 def array(
     item: Type,
     contains: bool = False,
-    min_items: Optional[int] = None,
+    min_items: Optional[int] = 1,
     max_items: Optional[int] = None,
     required: bool = False,
+    unique_items: bool = False,
 ) -> attr.Attribute:
     """Array schema data type
 
@@ -259,14 +261,19 @@ def array(
         min_items: positive integer representing the minimum number of items that can be on the array
         max_items: positive integer representing the maximum number of items that can be on the array
         required: True if field is required
+        unique_items: disallow duplicates
     Returns:
         A array attribute wrapper
     """
     _type = schemas.as_ref(item, schemas.get_type(item))
     if contains:
-        sc = ArrayType(contains=_type, minItems=min_items, maxItems=max_items)
+        sc = ArrayType(
+            contains=_type, minItems=min_items, maxItems=max_items, uniqueItems=unique_items
+        )
     else:
-        sc = ArrayType(items=_type, minItems=min_items, maxItems=max_items)
+        sc = ArrayType(
+            items=_type, minItems=min_items, maxItems=max_items, uniqueItems=unique_items
+        )
     return attr.ib(type=list, factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
@@ -307,6 +314,6 @@ def all_of(
 
 
 def must_not(item: Type) -> attr.Attribute:
-    obj = schemas.get_type(item)
+    obj = schemas.as_ref(item, schemas.get_type(item))
     sc = NotType(mustNot=obj)
     return attr.ib(type=dict, default=None, metadata={JO_SCHEMA: sc})

@@ -1,3 +1,4 @@
+import json
 from typing import Iterable, List
 
 import justobjects as jo
@@ -27,6 +28,7 @@ class StringModel:
     b: jo.UuidType
     c: Iterable[jo.TimeType]
     d: List[jo.Ipv4Type]
+    e: Model
 
 
-print(jo.show(StringModel))
+print(json.dumps(jo.show(StringModel), indent=2))
