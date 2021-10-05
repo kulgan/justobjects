@@ -113,6 +113,13 @@ def _resolve_ref(ref: RefType, sc: SchemaType):
     sc.definitions[ref.ref_name()] = schema.as_object()
 
 
+def _resolve_compositions(comp: CompositionType, sc: SchemaType) -> None:
+    for _type in comp.get_enclosed_types():
+        if not isinstance(_type, RefType):
+            continue
+        _resolve_ref(_type, sc)
+
+
 def extract(cls: typings.AttrClass) -> None:
     """Extract schema from a data object class
 
@@ -132,30 +139,22 @@ def extract(cls: typings.AttrClass) -> None:
         prop_desc: str = prop.metadata.get(JO_OBJECT_DESC)
         prop_schema = prop.metadata.get(JO_SCHEMA) or get_type(prop_type)
 
-        # retrieve referenced entries
-        if isinstance(prop_schema, RefType):
-            _resolve_ref(prop_schema, sc)
-
-        # negation type
-        if isinstance(prop_schema, NotType) and isinstance(prop_schema.mustNot, RefType):
-            _resolve_ref(prop_schema.mustNot, sc)
-
-        # array types
-        if isinstance(prop_schema, ArrayType) and isinstance(prop_schema.items, RefType):
-            _resolve_ref(prop_schema.items, sc)
+        # negation, referenced and array type
+        if isinstance(prop_schema, (ArrayType, NotType, RefType)) and isinstance(
+            prop_schema.get_enclosed_type(), RefType
+        ):
+            enclosed = cast(RefType, prop_schema.get_enclosed_type())
+            _resolve_ref(enclosed, sc)
 
         # composition types
         if isinstance(prop_schema, CompositionType):
-            for _type in prop_schema.get_types():
-                if not isinstance(_type, RefType):
-                    continue
-                _resolve_ref(_type, sc)
+            _resolve_compositions(prop_schema, sc)
 
         # transform objects to reference types
-        if is_referencable(prop_type) and isinstance(prop_schema, SchemaType):
-            sc.definitions[f"{prop_type.__name__}"] = prop_schema.as_object()
+        if typings.is_generic_type(prop_type) and isinstance(prop_schema, SchemaType):
+            # sc.definitions[f"{prop_type.__name__}"] = prop_schema.as_object()
             sc.definitions.update(prop_schema.definitions)
-            sc.properties[prop.name] = as_ref(prop_type, prop_schema, prop_desc)
+            sc.properties[prop.name] = prop_schema.as_object()
             continue
 
         sc.properties[prop.name] = prop_schema
@@ -297,34 +296,22 @@ def get_typed(cls: "typing.GenericMeta") -> JustSchema:  # type: ignore
         raise ValueError()
 
     if cls.__origin__ in TYPED_ITERABLES_ORIGINS:
-        obj_cls = cls.__args__[0]
-        is_set = cls in [Set, set]
-        ref = as_ref(obj_cls, get_type(obj_cls))
-        return ArrayType(items=ref, minItems=1, uniqueItems=is_set)
+        return _resolve_typed_arrays(cls)
 
     if cls.__origin__ == Union:
-        has_none_type = False
-        types: List[JustSchema] = []
-        for arg in cls.__args__:
-            if arg.__name__ == "NoneType":
-                has_none_type = True
-                continue
-            types.append(as_ref(arg, get_type(arg)))
-        if len(types) > 1:
-            return AnyOfType(anyOf=types)
-        if len(types) == 1:
-            return types[0]
+        return _resolve_unions(cls)
+
     if cls.__origin__ in TYPED_OBJECTS_ORIGINS:
         _, val_type = cls.__args__
 
-        obj_schema = SchemaType()
+        obj_schema = SchemaType(title="")
         val_schema = get_type(val_type)
         if is_referencable(val_type) and isinstance(val_schema, SchemaType):
             obj_schema.definitions.update(val_schema.definitions)
             obj_schema.definitions[f"{val_type.__name__}"] = val_schema.as_object()
-        obj_schema.patternProperties["^.*$"] = as_ref(val_type, get_type(val_type))
+        obj_schema.patternProperties["^.*$"] = as_ref(val_type, val_schema)
         return obj_schema
-    raise ValueError(f"Unknown data type {cls}")
+    raise ValueError(f"Unknown data type '{cls}'")
 
 
 def as_ref(obj_cls: Type, obj: JustSchema, description: Optional[str] = None) -> JustSchema:
@@ -341,9 +328,26 @@ def is_referencable(cls: Type) -> bool:
     return cls.__name__ in JUST_OBJECTS
 
 
-def resolve_dict(cls: Type) -> SchemaType:
-    _, val_type = cls.__args__
+def _resolve_typed_arrays(cls: "typing.GenericMeta") -> ArrayType:
+    obj_cls = cls.__args__[0]
+    is_set = cls.__origin__ in [Set, set]
+    ref = as_ref(obj_cls, get_type(obj_cls))
+    return ArrayType(items=ref, minItems=1, uniqueItems=is_set)
 
-    obj_type = get_type(val_type)
+
+def _resolve_unions(cls: "typing.GenericMeta") -> Union[CompositionType, JustSchema]:
+    types: List[JustSchema] = []
+    for arg in cls.__args__:
+        if arg.__name__ == "NoneType":
+            continue
+
+        types.append(as_ref(arg, get_type(arg)))
+    if len(types) > 1:
+        return AnyOfType(anyOf=types)
+    return types[0]
+
+
+def resolve_dict(cls: "typing.GenericMeta") -> SchemaType:
+    _, val_type = cls.__args__
     obj = as_ref(val_type, get_type(val_type))
     return SchemaType(patternProperties={"^.*$": obj}, additionalProperties=True)

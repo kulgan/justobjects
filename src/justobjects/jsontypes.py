@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
 
 import attr
 
@@ -23,6 +23,9 @@ def camel_case(snake_case: str) -> str:
 
 class JustSchema:
     """A marker denoting a json type"""
+
+    def get_enclosed_type(self) -> "JustSchema":
+        ...
 
     def as_dict(self) -> Dict[str, Any]:
         """Converts object instances to json schema"""
@@ -77,6 +80,9 @@ class RefType(JustSchema):
 
     def ref_name(self) -> str:
         return self.ref.split("/")[-1]
+
+    def get_enclosed_type(self) -> JustSchema:
+        return self
 
 
 @attr.s(auto_attribs=True)
@@ -247,9 +253,12 @@ class ArrayType(BasicType):
     maxItems: Optional[int] = attr.ib(default=None, validator=validate_positive)
     uniqueItems: Optional[bool] = False
 
+    def get_enclosed_type(self) -> JustSchema:
+        return self.items
+
 
 class CompositionType(JustSchema):
-    def get_types(self) -> Iterable[JustSchema]:
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
         ...
 
 
@@ -259,7 +268,7 @@ class AnyOfType(CompositionType):
 
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
 
-    def get_types(self) -> Iterable[JustSchema]:
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
         return self.anyOf
 
 
@@ -269,7 +278,7 @@ class OneOfType(CompositionType):
 
     oneOf: Iterable[JustSchema] = attr.ib(factory=list)
 
-    def get_types(self) -> Iterable[JustSchema]:
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
         return self.oneOf
 
 
@@ -279,7 +288,7 @@ class AllOfType(CompositionType):
 
     allOf: Iterable[JustSchema] = attr.ib(factory=list)
 
-    def get_types(self) -> Iterable[JustSchema]:
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
         return self.allOf
 
 
@@ -291,6 +300,9 @@ class NotType(JustSchema):
 
     def as_dict(self) -> Dict[str, Any]:
         return {"not": self.mustNot.as_dict()}
+
+    def get_enclosed_type(self) -> JustSchema:
+        return self.mustNot
 
 
 if __name__ == "__main__":

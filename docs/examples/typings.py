@@ -1,12 +1,12 @@
 import json
-from typing import Optional, Set
+from typing import Dict, Optional, Set, Union
 
 import justobjects as jo
 
 
 @jo.data(auto_attribs=True)
 class Troll:
-    weight: int
+    weight: Union[int, float]
     sex: str = "male"
 
 
@@ -20,8 +20,8 @@ class Droll:
 class Sphinx:
     age: int
     drolls: Droll
-    # sexes = jo.one_of(types=(bool, str))
-    # weights = jo.all_of(types=(jo.NumericType, jo.IntegerType))
+    sexes = Union[bool, str]
+    weights: Dict[str, Troll]
 
 
 print(json.dumps(jo.show(Sphinx), indent=2))
