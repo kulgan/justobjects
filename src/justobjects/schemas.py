@@ -1,8 +1,11 @@
 from collections import abc as ca
+from collections import defaultdict
 from typing import (
     Any,
     AnyStr,
     ByteString,
+    Container,
+    DefaultDict,
     Dict,
     Iterable,
     List,
@@ -42,8 +45,27 @@ INTEGERS = (int, IntegerType)
 ITERABLES = (list, set)
 NUMERICS = (float, NumericType)
 OBJECTS = (object, dict)
-TYPED_ITERABLES_ORIGINS = (Sequence, Iterable, ca.Sequence, ca.Iterable, list, List, set, Set)
-TYPED_OBJECTS_ORIGINS = (dict, Dict, Mapping)
+TYPED_ITERABLES_ORIGINS = (
+    Sequence,
+    Iterable,
+    ca.Sequence,
+    ca.Iterable,
+    list,
+    List,
+    set,
+    Set,
+    ca.Set,
+)
+TYPED_OBJECTS_ORIGINS = (
+    ca.Mapping,
+    ca.Container,
+    defaultdict,
+    dict,
+    Container,
+    DefaultDict,
+    Dict,
+    Mapping,
+)
 STRINGS = (str, AnyStr, StringType)
 
 TYPE_MAP: Dict[Type, Type[JustSchema]] = {
@@ -65,11 +87,10 @@ JUST_OBJECTS: Dict[str, SchemaType] = {}
 JO_TYPE = "__jo__type__"
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
-JO_OBJECT_DESC = "__jo__object_desc__"
 
 __all__ = [
-    "get",
-    "get_type",
+    "get_schema",
+    "transform",
     "show",
     "is_valid",
     "is_valid_data",
@@ -103,12 +124,18 @@ class ValidationException(Exception):
         self.errors = errors
 
 
-def add(cls: typings.AttrClass, obj: SchemaType) -> None:
+def add_schema(cls: typings.AttrClass, obj: SchemaType) -> None:
+    """Adds the schema of a data object to collection of schemas
+
+    Raises:
+        Exception if cls is not a class type with the __name__ attribute
+    """
+
     JUST_OBJECTS[f"{cls.__name__}"] = obj
 
 
 def _resolve_ref(ref: RefType, sc: SchemaType):
-    schema = get(ref)
+    schema = get_schema(ref)
     sc.definitions.update(schema.definitions)
     sc.definitions[ref.ref_name()] = schema.as_object()
 
@@ -120,7 +147,7 @@ def _resolve_compositions(comp: CompositionType, sc: SchemaType) -> None:
         _resolve_ref(_type, sc)
 
 
-def extract(cls: typings.AttrClass) -> None:
+def transform_properties(cls: typings.AttrClass) -> None:
     """Extract schema from a data object class
 
     Attributes:
@@ -136,8 +163,7 @@ def extract(cls: typings.AttrClass) -> None:
 
         if prop.metadata.get(JO_REQUIRED, False):
             sc.add_required(prop.name)
-        prop_desc: str = prop.metadata.get(JO_OBJECT_DESC)
-        prop_schema = prop.metadata.get(JO_SCHEMA) or get_type(prop_type)
+        prop_schema = prop.metadata.get(JO_SCHEMA) or transform(prop_type)
 
         # negation, referenced and array type
         if isinstance(prop_schema, (ArrayType, NotType, RefType)) and isinstance(
@@ -151,7 +177,7 @@ def extract(cls: typings.AttrClass) -> None:
             _resolve_compositions(prop_schema, sc)
 
         # transform objects to reference types
-        if typings.is_generic_type(prop_type) and isinstance(prop_schema, SchemaType):
+        if typings.is_typed_container(prop_type) and isinstance(prop_schema, SchemaType):
             # sc.definitions[f"{prop_type.__name__}"] = prop_schema.as_object()
             sc.definitions.update(prop_schema.definitions)
             sc.properties[prop.name] = prop_schema.as_object()
@@ -163,10 +189,10 @@ def extract(cls: typings.AttrClass) -> None:
         return sc.as_dict()
 
     setattr(cls, "__jo__", classmethod(__jo__))
-    add(cls, sc)
+    add_schema(cls, sc)
 
 
-def get(cls: Union[Type, RefType, BasicType]) -> Union[JustSchema, SchemaType]:
+def get_schema(cls: Union[Type, RefType, BasicType]) -> Union[JustSchema, SchemaType]:
     """Retrieves a justschema representation for the class or object instance
 
     Args:
@@ -274,11 +300,12 @@ def is_valid(node: Any) -> None:
     is_valid_data(node.__class__, as_dict(node))
 
 
-def get_type(cls: Type) -> JustSchema:
+def transform(cls: Type) -> JustSchema:
+    """ "Attempts to transform any object class type into an appropriate schema type"""
 
     # generics
-    if typings.is_generic_type(cls):
-        return get_typed(cls)
+    if typings.is_typed_container(cls):
+        return transform_typed_container(cls)
 
     if cls in TYPE_MAP:
         sch = TYPE_MAP[cls]
@@ -288,11 +315,11 @@ def get_type(cls: Type) -> JustSchema:
     if issubclass(cls, JustSchema):
         return cls()
 
-    return get(cls)
+    return get_schema(cls)
 
 
-def get_typed(cls: "typing.GenericMeta") -> JustSchema:  # type: ignore
-    if not typings.is_generic_type(cls):
+def transform_typed_container(cls: "typing.GenericMeta") -> JustSchema:  # type: ignore
+    if not typings.is_typed_container(cls):
         raise ValueError()
 
     if cls.__origin__ in TYPED_ITERABLES_ORIGINS:
@@ -305,7 +332,7 @@ def get_typed(cls: "typing.GenericMeta") -> JustSchema:  # type: ignore
         _, val_type = cls.__args__
 
         obj_schema = SchemaType(title="")
-        val_schema = get_type(val_type)
+        val_schema = transform(val_type)
         if is_referencable(val_type) and isinstance(val_schema, SchemaType):
             obj_schema.definitions.update(val_schema.definitions)
             obj_schema.definitions[f"{val_type.__name__}"] = val_schema.as_object()
@@ -321,7 +348,7 @@ def as_ref(obj_cls: Type, obj: JustSchema, description: Optional[str] = None) ->
 
 
 def is_referencable(cls: Type) -> bool:
-    if typings.is_generic_type(cls):
+    if typings.is_typed_container(cls):
         return False
     if isinstance(cls, (set, list)):
         return False
@@ -329,9 +356,17 @@ def is_referencable(cls: Type) -> bool:
 
 
 def _resolve_typed_arrays(cls: "typing.GenericMeta") -> ArrayType:
+    """Converts typed list based classes into ArrayType
+
+    Examples:
+        @jo.data(auto_attribs=True)
+        class People:
+            names: Set[str]
+    """
+
     obj_cls = cls.__args__[0]
-    is_set = cls.__origin__ in [Set, set]
-    ref = as_ref(obj_cls, get_type(obj_cls))
+    is_set = cls.__origin__ in [ca.Set, Set, set]
+    ref = as_ref(obj_cls, transform(obj_cls))
     return ArrayType(items=ref, minItems=1, uniqueItems=is_set)
 
 
@@ -341,7 +376,7 @@ def _resolve_unions(cls: "typing.GenericMeta") -> Union[CompositionType, JustSch
         if arg.__name__ == "NoneType":
             continue
 
-        types.append(as_ref(arg, get_type(arg)))
+        types.append(as_ref(arg, transform(arg)))
     if len(types) > 1:
         return AnyOfType(anyOf=types)
     return types[0]
@@ -349,5 +384,5 @@ def _resolve_unions(cls: "typing.GenericMeta") -> Union[CompositionType, JustSch
 
 def resolve_dict(cls: "typing.GenericMeta") -> SchemaType:
     _, val_type = cls.__args__
-    obj = as_ref(val_type, get_type(val_type))
-    return SchemaType(patternProperties={"^.*$": obj}, additionalProperties=True)
+    obj = as_ref(val_type, transform(val_type))
+    return SchemaType(patternProperties={"^.*$": obj}, additionalProperties=False)

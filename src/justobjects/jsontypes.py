@@ -257,7 +257,10 @@ class ArrayType(BasicType):
         return self.items
 
 
+@attr.s(auto_attribs=True)
 class CompositionType(JustSchema):
+    description: Optional[str] = None
+
     def get_enclosed_types(self) -> Iterable[JustSchema]:
         ...
 
@@ -297,6 +300,7 @@ class NotType(JustSchema):
     """The not keyword declares that an instance validates if it doesn’t validate against the given subschema."""
 
     mustNot: JustSchema
+    description: Optional[str] = None
 
     def as_dict(self) -> Dict[str, Any]:
         return {"not": self.mustNot.as_dict()}

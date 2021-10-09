@@ -1,0 +1,7 @@
+{
+  "$schema": "schema.json",
+  "age": 23,
+  "weights": {
+    "smk": 120
+  }
+}

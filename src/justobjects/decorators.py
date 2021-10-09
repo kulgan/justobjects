@@ -34,27 +34,6 @@ class AttrClass(typings.Protocol):
     __attrs_attrs__: Iterable[attr.Attribute]
 
 
-def extract_schema(cls: AttrClass, sc: ObjectType) -> None:
-    sc.properties = {}
-    attributes = cls.__attrs_attrs__
-    for attrib in attributes:
-        cls_type = attrib.metadata.get(JO_TYPE, attrib.type)
-        psc = attrib.metadata.get(JO_SCHEMA) or schemas.get_type(cls_type)
-        is_required = attrib.metadata.get(JO_REQUIRED, False) or attrib.default == attr.NOTHING
-
-        field_name = attrib.name
-        if is_required:
-            sc.add_required(field_name)
-
-        if not isinstance(psc, ObjectType) or typings.is_generic_type(cls_type):
-            sc.properties[field_name] = psc
-            continue
-
-        desc = attrib.metadata.get(JO_OBJECT_DESC)
-        sc.properties[field_name] = schemas.as_ref(cls_type, psc, desc)
-    schemas.add(cls, sc)
-
-
 def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
@@ -80,7 +59,7 @@ def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Ty
 
     def wraps(cls: Type) -> Type:
         cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
-        schemas.extract(cls)
+        schemas.transform_properties(cls)
         return cls
 
     return wraps
@@ -138,15 +117,14 @@ def ref(
     Returns:
         a schema reference attribute wrapper
     """
-    obj = schemas.get_type(ref_type)
+    obj = schemas.transform(ref_type)
     return attr.ib(
         type=ref_type,
         default=default,
         metadata={
-            JO_SCHEMA: schemas.as_ref(ref_type, obj),
+            JO_SCHEMA: schemas.as_ref(ref_type, obj, description),
             JO_TYPE: ref_type,
             JO_REQUIRED: required,
-            JO_OBJECT_DESC: description,
         },
     )
 
@@ -250,6 +228,7 @@ def array(
     max_items: Optional[int] = None,
     required: bool = False,
     unique_items: bool = False,
+    description: Optional[str] = None,
 ) -> attr.Attribute:
     """Array schema data type
 
@@ -262,58 +241,77 @@ def array(
         max_items: positive integer representing the maximum number of items that can be on the array
         required: True if field is required
         unique_items: disallow duplicates
+        description: field description
     Returns:
         A array attribute wrapper
     """
-    _type = schemas.as_ref(item, schemas.get_type(item))
+    _type = schemas.as_ref(item, schemas.transform(item))
     if contains:
         sc = ArrayType(
-            contains=_type, minItems=min_items, maxItems=max_items, uniqueItems=unique_items
+            contains=_type,
+            minItems=min_items,
+            maxItems=max_items,
+            uniqueItems=unique_items,
+            description=description,
         )
     else:
         sc = ArrayType(
-            items=_type, minItems=min_items, maxItems=max_items, uniqueItems=unique_items
+            items=_type,
+            minItems=min_items,
+            maxItems=max_items,
+            uniqueItems=unique_items,
+            description=description,
         )
     return attr.ib(type=list, factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
 def any_of(
-    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+    types: Iterable[Type],
+    default: Optional[Any] = None,
+    required: bool = False,
+    description: Optional[str] = None,
 ) -> attr.Attribute:
     """JSON schema anyOf"""
 
-    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
-    sc = AnyOfType(anyOf=items)
+    items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
+    sc = AnyOfType(anyOf=items, description=description)
     return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
 def one_of(
-    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+    types: Iterable[Type],
+    default: Optional[Any] = None,
+    required: bool = False,
+    description: Optional[str] = None,
 ) -> attr.Attribute:
     """Applies to properties and complies with JSON schema oneOf property
     Args:
         types (list[type]): list of types that will be allowed
         default (object): default object instance that must be one of the allowed types
         required: True if property is required
+        description: field comments/description
     Returns:
         attr.ib: field instance
     """
-    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
-    sc = OneOfType(oneOf=items)
+    items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
+    sc = OneOfType(oneOf=items, description=description)
     return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
 def all_of(
-    types: Iterable[Type], default: Optional[Any] = None, required: bool = False
+    types: Iterable[Type],
+    default: Optional[Any] = None,
+    required: bool = False,
+    description: Optional[str] = None,
 ) -> attr.Attribute:
     """JSON schema allOf"""
 
-    items = [schemas.as_ref(cls, schemas.get_type(cls)) for cls in types]
-    sc = AllOfType(allOf=items)
+    items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
+    sc = AllOfType(allOf=items, description=description)
     return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
 
 
-def must_not(item: Type) -> attr.Attribute:
-    obj = schemas.as_ref(item, schemas.get_type(item))
-    sc = NotType(mustNot=obj)
+def must_not(item: Type, description: Optional[str] = None) -> attr.Attribute:
+    obj = schemas.as_ref(item, schemas.transform(item))
+    sc = NotType(mustNot=obj, description=description)
     return attr.ib(type=dict, default=None, metadata={JO_SCHEMA: sc})

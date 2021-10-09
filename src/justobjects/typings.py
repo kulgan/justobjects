@@ -8,7 +8,7 @@ else:
 
 import attr
 
-__all__ = ["AttrClass", "Literal", "Protocol", "TypedDict", "is_generic_type"]
+__all__ = ["AttrClass", "Literal", "Protocol", "TypedDict", "is_typed_container"]
 
 
 class AttrClass(Protocol):
@@ -20,5 +20,5 @@ class AttrClass(Protocol):
         ...
 
 
-def is_generic_type(cls: Type) -> bool:
+def is_typed_container(cls: Type) -> bool:
     return hasattr(cls, "__origin__")

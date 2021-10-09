@@ -19,7 +19,8 @@
     },
     "troll": {
       "not": {
-        "$ref": "#/definitions/Troll"
+        "$ref": "#/definitions/Troll",
+        "description": ""
       }
     }
   },

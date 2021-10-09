@@ -1,5 +1,6 @@
 {
   "type": "object",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "title": "Draft7 JustObjects schema for data object '__main__.Sphinx'",
   "additionalProperties": false,
   "required": [
@@ -19,6 +20,7 @@
     },
     "trolls": {
       "type": "array",
+      "description": "",
       "items": {
         "$ref": "#/definitions/Troll"
       },

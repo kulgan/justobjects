@@ -21,7 +21,7 @@ class Sphinx:
     age: int
     drolls: Droll
     sexes = Union[bool, str]
-    weights: Dict[str, Troll]
+    weights: Dict[str, int]
 
 
 print(json.dumps(jo.show(Sphinx), indent=2))
