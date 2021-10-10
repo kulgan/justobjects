@@ -1,5 +1,6 @@
 from collections import abc as ca
 from collections import defaultdict
+from types import MethodType
 from typing import (
     Any,
     AnyStr,
@@ -68,7 +69,7 @@ TYPED_OBJECTS_ORIGINS = (
 )
 STRINGS = (str, AnyStr, StringType)
 
-TYPE_MAP: Dict[Type, Type[JustSchema]] = {
+TYPE_MAP: Dict[Any, Type[JustSchema]] = {
     bool: BooleanType,
     dict: ObjectType,
     int: IntegerType,
@@ -91,9 +92,9 @@ JO_REQUIRED = "__jo__required__"
 __all__ = [
     "get_schema",
     "transform",
-    "show",
-    "is_valid",
-    "is_valid_data",
+    "show_schema",
+    "validate",
+    "validate_raw",
     "ValidationError",
     "ValidationException",
 ]
@@ -120,7 +121,7 @@ class ValidationException(Exception):
     """
 
     def __init__(self, errors: List[ValidationError]):
-        super(ValidationException, self).__init__("Validation errors occurred")
+        super(ValidationException, self).__init__(f"Data validation error: {errors}")
         self.errors = errors
 
 
@@ -134,8 +135,8 @@ def add_schema(cls: typings.AttrClass, obj: SchemaType) -> None:
     JUST_OBJECTS[f"{cls.__name__}"] = obj
 
 
-def _resolve_ref(ref: RefType, sc: SchemaType):
-    schema = get_schema(ref)
+def _resolve_ref(ref: RefType, sc: SchemaType) -> None:
+    schema = cast(SchemaType, get_schema(ref))
     sc.definitions.update(schema.definitions)
     sc.definitions[ref.ref_name()] = schema.as_object()
 
@@ -161,9 +162,9 @@ def transform_properties(cls: typings.AttrClass) -> None:
     for prop in cls.__attrs_attrs__:
         prop_type = prop.metadata.get(JO_TYPE, prop.type)
 
-        if prop.metadata.get(JO_REQUIRED, False):
+        if prop.metadata.get(JO_REQUIRED, False) or prop.default == attr.NOTHING:
             sc.add_required(prop.name)
-        prop_schema = prop.metadata.get(JO_SCHEMA) or transform(prop_type)
+        prop_schema = prop.metadata.get(JO_SCHEMA, transform(prop_type))
 
         # negation, referenced and array type
         if isinstance(prop_schema, (ArrayType, NotType, RefType)) and isinstance(
@@ -171,28 +172,38 @@ def transform_properties(cls: typings.AttrClass) -> None:
         ):
             enclosed = cast(RefType, prop_schema.get_enclosed_type())
             _resolve_ref(enclosed, sc)
+            sc.properties[prop.name] = prop_schema
+            continue
 
         # composition types
         if isinstance(prop_schema, CompositionType):
             _resolve_compositions(prop_schema, sc)
+            sc.properties[prop.name] = prop_schema
+            continue
+
+        if hasattr(prop_type, "__jo__") and not isinstance(prop_schema, RefType):
+            schema = cast(SchemaType, prop_schema)
+            sc.definitions.update(schema.definitions)
+            sc.definitions[prop_type.__name__] = schema.as_object()
+            sc.properties[prop.name] = as_ref(prop_type, schema)
+            continue
 
         # transform objects to reference types
         if typings.is_typed_container(prop_type) and isinstance(prop_schema, SchemaType):
-            # sc.definitions[f"{prop_type.__name__}"] = prop_schema.as_object()
             sc.definitions.update(prop_schema.definitions)
             sc.properties[prop.name] = prop_schema.as_object()
             continue
 
         sc.properties[prop.name] = prop_schema
 
-    def __jo__(cls) -> Dict[str, Any]:
+    def __jo__(cls: Type[JustSchema]) -> Dict[str, Any]:
         return sc.as_dict()
 
     setattr(cls, "__jo__", classmethod(__jo__))
     add_schema(cls, sc)
 
 
-def get_schema(cls: Union[Type, RefType, BasicType]) -> Union[JustSchema, SchemaType]:
+def get_schema(cls: Union[Type[JustSchema], RefType, BasicType]) -> Union[JustSchema, SchemaType]:
     """Retrieves a justschema representation for the class or object instance
 
     Args:
@@ -201,21 +212,21 @@ def get_schema(cls: Union[Type, RefType, BasicType]) -> Union[JustSchema, Schema
     if isinstance(cls, BasicType):
         return cls
 
-    class_name = None
     if isinstance(cls, RefType):
         class_name = cls.ref_name()
+    else:
+        class_name = cls.__name__
 
-    cls_name = class_name or f"{cls.__name__}"
-    if cls_name not in JUST_OBJECTS:
-        raise ValueError(f"Unrecognized data object class '{cls_name}'")
-    return JUST_OBJECTS[cls_name]
+    if not class_name or class_name not in JUST_OBJECTS:
+        raise ValueError(f"Unrecognized data object class '{class_name}'")
+    return JUST_OBJECTS[class_name]
 
 
-def show(cls: Union[Type, JustSchema]) -> Dict:
+def show_schema(model: Any) -> Dict:
     """Converts a data object class type into a valid json schema
 
     Args:
-        cls: data object class type
+        model: data object class type or instance
     Returns:
         a json schema dictionary
 
@@ -224,14 +235,23 @@ def show(cls: Union[Type, JustSchema]) -> Dict:
 
             import justobjects as jo
             s = jo.IntegerType(minimum=3)
-            jo.show(s)
+            jo.show_schema(s)
             # {'minimum': 3, 'type': 'integer'}
     """
-    if isinstance(cls, JustSchema):
-        return cls.as_dict()
+    if isinstance(model, JustSchema):
+        return model.as_dict()
 
-    ref = cast(typings.AttrClass, cls)
-    return ref.__jo__()
+    if hasattr(model, "__jo__"):
+        return model.__jo__()
+
+    if model in TYPE_MAP:
+        return TYPE_MAP[model]().as_dict()
+
+    # generics
+    if typings.is_typed_container(model):
+        return transform_typed_container(cast(typings.GenericMeta, model)).as_dict()
+
+    raise ValueError(f"Unrecognized data object {model}")
 
 
 def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:
@@ -242,7 +262,7 @@ def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationE
     return errors
 
 
-def is_valid_data(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
+def validate_raw(cls: Type[JustSchema], data: Union[Dict, Iterable[Dict]]) -> None:
     """Validates if a data sample is valid for the given data object type
 
     This is best suited for validating existing json data without having to creating instances of
@@ -265,7 +285,7 @@ def is_valid_data(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
 
           is_valid_data(Model, {"a":4, "b":True})
     """
-    schema = show(cls)
+    schema = show_schema(cls)
     validator = Draft7Validator(schema=schema)
 
     errors: List[ValidationError] = []
@@ -278,7 +298,7 @@ def is_valid_data(cls: Type, data: Union[Dict, Iterable[Dict]]) -> None:
         raise ValidationException(errors=errors)
 
 
-def is_valid(node: Any) -> None:
+def validate(node: Any) -> None:
     """Validates an object instance against its associated json schema
 
     Args:
@@ -297,7 +317,7 @@ def is_valid(node: Any) -> None:
 
           is_valid(Model(a=4, b=True)
     """
-    is_valid_data(node.__class__, as_dict(node))
+    validate_raw(node.__class__, as_dict(node))
 
 
 def transform(cls: Type) -> JustSchema:
@@ -305,7 +325,7 @@ def transform(cls: Type) -> JustSchema:
 
     # generics
     if typings.is_typed_container(cls):
-        return transform_typed_container(cls)
+        return transform_typed_container(cast(typings.GenericMeta, cls))
 
     if cls in TYPE_MAP:
         sch = TYPE_MAP[cls]
@@ -315,10 +335,10 @@ def transform(cls: Type) -> JustSchema:
     if issubclass(cls, JustSchema):
         return cls()
 
-    return get_schema(cls)
+    return get_schema(cast(Type[JustSchema], cls))
 
 
-def transform_typed_container(cls: "typing.GenericMeta") -> JustSchema:  # type: ignore
+def transform_typed_container(cls: typings.GenericMeta) -> JustSchema:  # type: ignore
     if not typings.is_typed_container(cls):
         raise ValueError()
 
@@ -355,11 +375,11 @@ def is_referencable(cls: Type) -> bool:
     return cls.__name__ in JUST_OBJECTS
 
 
-def _resolve_typed_arrays(cls: "typing.GenericMeta") -> ArrayType:
+def _resolve_typed_arrays(cls: typings.GenericMeta) -> ArrayType:
     """Converts typed list based classes into ArrayType
 
     Examples:
-        @jo.data(auto_attribs=True)
+        @jo.data(typed=True)
         class People:
             names: Set[str]
     """
@@ -370,7 +390,7 @@ def _resolve_typed_arrays(cls: "typing.GenericMeta") -> ArrayType:
     return ArrayType(items=ref, minItems=1, uniqueItems=is_set)
 
 
-def _resolve_unions(cls: "typing.GenericMeta") -> Union[CompositionType, JustSchema]:
+def _resolve_unions(cls: typings.GenericMeta) -> Union[CompositionType, JustSchema]:
     types: List[JustSchema] = []
     for arg in cls.__args__:
         if arg.__name__ == "NoneType":
@@ -380,9 +400,3 @@ def _resolve_unions(cls: "typing.GenericMeta") -> Union[CompositionType, JustSch
     if len(types) > 1:
         return AnyOfType(anyOf=types)
     return types[0]
-
-
-def resolve_dict(cls: "typing.GenericMeta") -> SchemaType:
-    _, val_type = cls.__args__
-    obj = as_ref(val_type, transform(val_type))
-    return SchemaType(patternProperties={"^.*$": obj}, additionalProperties=False)

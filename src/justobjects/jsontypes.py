@@ -34,7 +34,7 @@ class JustSchema:
 
 
 class PropertyDict(Dict[str, JustSchema]):
-    def __init__(self):
+    def __init__(self) -> None:
         super(PropertyDict, self).__init__()
         self["id"] = StringType(default=None)
         self["schema"] = StringType(default="http://json-schema.org/draft-07/schema#")

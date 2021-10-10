@@ -14,4 +14,4 @@ class Sphinx:
     troll = jo.ref(Troll, default=None)
 
 
-print(json.dumps(jo.show(Sphinx), indent=2))
+print(json.dumps(jo.show_schema(Sphinx), indent=2))

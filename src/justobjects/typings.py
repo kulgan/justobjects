@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Dict, Iterable, Type
+from typing import Any, Dict, Iterable, Tuple, Type
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict  # pylint: disable=no-name-in-module
@@ -8,7 +8,16 @@ else:
 
 import attr
 
-__all__ = ["AttrClass", "Literal", "Protocol", "TypedDict", "is_typed_container"]
+__all__ = [
+    "AttrClass",
+    "GenericMeta",
+    "Literal",
+    "Protocol",
+    "TypedContainer",
+    "TypedDict",
+    "is_typed_container",
+]
+TypedContainer = Type["GenericMeta"]
 
 
 class AttrClass(Protocol):
@@ -20,5 +29,10 @@ class AttrClass(Protocol):
         ...
 
 
-def is_typed_container(cls: Type) -> bool:
+class GenericMeta(Protocol):
+    __args__: Tuple[Type, ...]
+    __origin__: Type
+
+
+def is_typed_container(cls: Any) -> bool:
     return hasattr(cls, "__origin__")

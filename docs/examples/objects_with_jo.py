@@ -12,17 +12,17 @@ class Model:
 
 
 # display schema
-print(jo.show(Model))
+print(jo.show_schema(Model))
 
 
 try:
     # fails validation
-    jo.is_valid(Model(a=3.1415, b=2.72, c="123"))
+    jo.validate(Model(a=3.1415, b=2.72, c="123"))
 except jo.schemas.ValidationException as err:
     print(err.errors)
 
 
-@jo.data(auto_attribs=True)
+@jo.data(typed=True)
 class StringModel:
     a: jo.EmailType
     b: jo.UuidType
@@ -31,4 +31,4 @@ class StringModel:
     e: Model
 
 
-print(json.dumps(jo.show(StringModel), indent=2))
+print(json.dumps(jo.show_schema(StringModel), indent=2))

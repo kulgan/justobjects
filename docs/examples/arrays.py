@@ -17,4 +17,4 @@ class Sphinx:
     weights = jo.array(item=jo.NumericType)
 
 
-print(json.dumps(jo.show(Sphinx), indent=2))
+print(json.dumps(jo.show_schema(Sphinx), indent=2))

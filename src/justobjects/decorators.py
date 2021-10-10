@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Type
+from typing import Any, Callable, Iterable, List, Optional, Type, cast
 
 import attr
 
@@ -34,13 +34,13 @@ class AttrClass(typings.Protocol):
     __attrs_attrs__: Iterable[attr.Attribute]
 
 
-def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Type]:
+def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
 
     Args:
         frozen: frozen data class
-        auto_attribs: set to True to use typings
+        typed: set to True to use typings
     Returns:
         a JustSchema object wrapper
     Example:
@@ -58,8 +58,8 @@ def data(frozen: bool = True, auto_attribs: bool = False) -> Callable[[Type], Ty
     """
 
     def wraps(cls: Type) -> Type:
-        cls = attr.s(cls, auto_attribs=auto_attribs, frozen=frozen)
-        schemas.transform_properties(cls)
+        cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
+        schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
 
     return wraps
@@ -105,7 +105,7 @@ def ref(
     ref_type: Type,
     required: bool = False,
     description: Optional[str] = None,
-    default: Optional[Type] = attr.NOTHING,
+    default: Optional[Type] = None,
 ) -> attr.Attribute:
     """Creates a json reference to another json object
 
