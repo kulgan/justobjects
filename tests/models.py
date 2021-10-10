@@ -3,13 +3,13 @@ from typing import Dict, Iterable, List
 import justobjects as jo
 
 
-@jo.data(auto_attribs=True)
+@jo.data(typed=True)
 class Role:
     name: str
     race: str
 
 
-@jo.data(auto_attribs=True)
+@jo.data(typed=True)
 class Actor:
     """A person that can play movie characters"""
 
@@ -38,7 +38,7 @@ class Movie:
     budget = jo.numeric(default=100000, required=False)
 
 
-@jo.data(auto_attribs=True)
+@jo.data(typed=True)
 class Manager:
     actors: Iterable[Actor]
     movies: List[Movie]

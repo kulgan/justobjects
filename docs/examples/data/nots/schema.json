@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "title": "Draft7 JustObjects schema for data object '__main__.Sphinx'",
+  "additionalProperties": false,
+  "required": [
+    "age"
+  ],
+  "properties": {
+    "$id": {
+      "type": "string"
+    },
+    "$schema": {
+      "type": "string",
+      "default": "http://json-schema.org/draft-07/schema#"
+    },
+    "age": {
+      "default": 10,
+      "type": "integer"
+    },
+    "troll": {
+      "not": {
+        "$ref": "#/definitions/Troll",
+        "description": ""
+      }
+    }
+  },
+  "definitions": {
+    "Troll": {
+      "type": "object",
+      "title": "Draft7 JustObjects schema for data object '__main__.Troll'",
+      "additionalProperties": false,
+      "properties": {
+        "$id": {
+          "type": "string"
+        },
+        "$schema": {
+          "type": "string",
+          "default": "http://json-schema.org/draft-07/schema#"
+        },
+        "sex": {
+          "type": "string",
+          "default": "male"
+        }
+      }
+    }
+  }
+}

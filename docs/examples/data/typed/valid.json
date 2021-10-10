@@ -1,0 +1,14 @@
+{
+  "$schema": "schema.json",
+  "age": 23,
+  "weights": {
+    "smk": [
+      {
+        "sex": "male",
+        "weight": 12
+      }, {
+        "sd": 1
+      }
+    ]
+  }
+}

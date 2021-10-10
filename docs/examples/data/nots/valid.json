@@ -1,0 +1,7 @@
+{
+  "$schema": "schema.json",
+  "age": 10,
+  "troll": {
+    "name": "Steve"
+  }
+}

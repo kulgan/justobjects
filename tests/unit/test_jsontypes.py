@@ -18,6 +18,15 @@ def test_to_camel_case(value: str, expectation: str) -> None:
     assert jsontypes.camel_case(value) == expectation
 
 
+def test_string_type() -> None:
+    obj = jsontypes.StringType(minLength=3, default="NAN")
+    js = obj.as_dict()
+
+    assert js["type"] == "string"
+    assert js["minLength"] == 3
+    assert js["default"] == "NAN"
+
+
 def test_mixin__json_schema() -> None:
     obj = jsontypes.ObjectType(additionalProperties=True)
     obj.properties["label"] = jsontypes.StringType(default="skin", maxLength=10)

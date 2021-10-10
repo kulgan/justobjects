@@ -1,0 +1,15 @@
+{
+  "$schema": "schema.json",
+  "age": 10,
+  "trolls": {
+    "trolls": [
+      {"weight": 12},
+      {
+        "sex": "male", "weight": 13
+      }
+    ],
+    "style": 12
+  },
+  "sexes": true,
+  "weights": 12
+}

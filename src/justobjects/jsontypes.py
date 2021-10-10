@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
 
 import attr
 
@@ -24,10 +24,20 @@ def camel_case(snake_case: str) -> str:
 class JustSchema:
     """A marker denoting a json type"""
 
+    def get_enclosed_type(self) -> "JustSchema":
+        ...
+
     def as_dict(self) -> Dict[str, Any]:
         """Converts object instances to json schema"""
 
         return parse_dict(self.__dict__)
+
+
+class PropertyDict(Dict[str, JustSchema]):
+    def __init__(self) -> None:
+        super(PropertyDict, self).__init__()
+        # self["$id"] = StringType(default="None")  # Fails for py39+
+        self["schema"] = StringType(default="http://json-schema.org/draft-07/schema#")
 
 
 def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
@@ -40,8 +50,8 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
         if v is None:
             continue
         # map ref
-        if k == "ref":
-            k = "$ref"
+        if k in ["ref", "schema", "id"]:
+            k = f"${k}"
         dict_val = as_dict(v)
         if dict_val or isinstance(dict_val, bool):
             parsed[k] = dict_val
@@ -67,6 +77,12 @@ def as_dict(val: Any) -> Any:
 class RefType(JustSchema):
     ref: str
     description: Optional[str] = None
+
+    def ref_name(self) -> str:
+        return self.ref.split("/")[-1]
+
+    def get_enclosed_type(self) -> JustSchema:
+        return self
 
 
 @attr.s(auto_attribs=True)
@@ -186,15 +202,30 @@ class UuidType(StringType):
 @attr.s(auto_attribs=True)
 class ObjectType(BasicType):
     type: SchemaDataType = attr.ib(default="object", init=False)
-    additionalProperties: bool = False
+    title: str = "Draft7 JustObjects schema"
+    additionalProperties: bool = True
     required: List[str] = attr.ib(factory=list)
-    properties: Dict[str, JustSchema] = attr.ib(factory=dict)
+    properties: Dict[str, JustSchema] = attr.ib(factory=PropertyDict)
     patternProperties: Dict[str, JustSchema] = attr.ib(factory=dict)
 
     def add_required(self, field: str) -> None:
         if field in self.required:
             return
         self.required.append(field)
+
+
+@attr.s(auto_attribs=True)
+class SchemaType(ObjectType):
+    definitions: Dict[str, ObjectType] = attr.ib(factory=dict)
+
+    def as_object(self) -> ObjectType:
+        return ObjectType(
+            title=self.title,
+            additionalProperties=self.additionalProperties,
+            required=self.required,
+            properties=self.properties,
+            patternProperties=self.patternProperties,
+        )
 
 
 @attr.s(auto_attribs=True)
@@ -218,30 +249,50 @@ class ArrayType(BasicType):
     type: SchemaDataType = attr.ib(default="array", init=False)
     items: JustSchema = attr.ib(default=None)
     contains: JustSchema = attr.ib(default=None)
-    minItems: Optional[int] = attr.ib(default=None, validator=validate_positive)
+    minItems: Optional[int] = attr.ib(default=1, validator=validate_positive)
     maxItems: Optional[int] = attr.ib(default=None, validator=validate_positive)
     uniqueItems: Optional[bool] = False
 
+    def get_enclosed_type(self) -> JustSchema:
+        return self.items
+
 
 @attr.s(auto_attribs=True)
-class AnyOfType(JustSchema):
+class CompositionType(JustSchema):
+    description: Optional[str] = None
+
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
+        ...
+
+
+@attr.s(auto_attribs=True)
+class AnyOfType(CompositionType):
     """Json anyOf schema, entries must be valid against exactly one of the subschemas"""
 
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
 
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
+        return self.anyOf
+
 
 @attr.s(auto_attribs=True)
-class OneOfType(JustSchema):
+class OneOfType(CompositionType):
     """Json oneOf schema, entries must be valid against any of the subschemas"""
 
     oneOf: Iterable[JustSchema] = attr.ib(factory=list)
 
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
+        return self.oneOf
+
 
 @attr.s(auto_attribs=True)
-class AllOfType(JustSchema):
+class AllOfType(CompositionType):
     """Json allOf schema, entries must be valid against all of the subschemas"""
 
     allOf: Iterable[JustSchema] = attr.ib(factory=list)
+
+    def get_enclosed_types(self) -> Iterable[JustSchema]:
+        return self.allOf
 
 
 @attr.s(auto_attribs=True)
@@ -249,6 +300,15 @@ class NotType(JustSchema):
     """The not keyword declares that an instance validates if it doesn’t validate against the given subschema."""
 
     mustNot: JustSchema
+    description: Optional[str] = None
 
     def as_dict(self) -> Dict[str, Any]:
         return {"not": self.mustNot.as_dict()}
+
+    def get_enclosed_type(self) -> JustSchema:
+        return self.mustNot
+
+
+if __name__ == "__main__":
+    pd = PropertyDict()
+    print(pd)
