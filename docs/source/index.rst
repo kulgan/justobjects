@@ -58,11 +58,11 @@ Usage Example
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    usage
-   decorators
+   fields
    schemas
 
 

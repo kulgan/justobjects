@@ -1,9 +1,9 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
 
-from justobjects import typings
+from justobjects import typings, validation
 
 SchemaDataType = typings.Literal[
     "null", "array", "boolean", "object", "array", "number", "integer", "string"
@@ -31,6 +31,10 @@ class JustSchema:
         """Converts object instances to json schema"""
 
         return parse_dict(self.__dict__)
+
+    def validate(self, instance: Any) -> None:
+        schema = self.as_dict()
+        validation.validate(schema, instance)
 
 
 class PropertyDict(Dict[str, JustSchema]):
@@ -87,6 +91,13 @@ class RefType(JustSchema):
 
 @attr.s(auto_attribs=True)
 class BasicType(JustSchema):
+    """A marker type used by other types
+
+    Attributes:
+        type: jsonschema type value
+        description: text description
+    """
+
     type: SchemaDataType
     description: Optional[str] = None
 
@@ -138,7 +149,20 @@ class IntegerType(NumericType):
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    """The string type is used for strings of text."""
+    """The string type is used for strings of text.
+
+    Examples:
+
+        >>> import justobjects as jo
+        >>> sc = StringType(minLength=2, maxLength=16)
+        >>> jo.show_schema(sc)
+        {'type': 'string', 'minLength': 2, 'maxLength': 16}
+        >>> sc.validate("missy")  # valid
+        >>> sc.validate("A")  # invalid
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="'A' is too short")]
+    """
 
     type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
