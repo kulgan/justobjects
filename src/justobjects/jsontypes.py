@@ -104,18 +104,36 @@ class BasicType(JustSchema):
 
 @attr.s(auto_attribs=True)
 class BooleanType(BasicType):
+    """Json boolean type schema
+
+    Examples:
+
+        >>> bt = BooleanType(default=False)
+        >>> bt.validate(True)
+    """
+
     type: SchemaDataType = attr.ib(default="boolean", init=False)
     default: Optional[bool] = None
 
 
 def validate_positive(instance: Any, attribute: attr.Attribute, value: int) -> None:
     if value and value < 1:
-        raise ValueError(f"{attribute.name} on {instance} must be set to a positive number")
+        raise ValueError(f"{attribute.name} must be set to a positive number")
 
 
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    """The number type is used for any numeric type, either integers or floating point numbers."""
+    """The number type is used for any numeric type, either integers or floating point numbers.
+
+    Examples:
+
+        >>> nt = NumericType(multipleOf=6, maximum=180)
+        >>> nt.validate(36)  # ok
+        >>> NumericType(multipleOf=-1)
+        Traceback (most recent call last):
+        ...
+        ValueError: multipleOf must be set to a positive number
+    """
 
     type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[float] = None
@@ -137,6 +155,11 @@ class IntegerType(NumericType):
         minimum (int): the minimum possible value
         exclusiveMaximum (int): the maximum possible value that cannot be reached
         exclusiveMinimu (int): the minimum possible value that cannot be reached
+
+    Examples:
+
+        >>> it = IntegerType(maximum=200, minimum=10)
+        >>> it.validate(150)  # ok
     """
 
     type: SchemaDataType = attr.ib(default="integer", init=False)
@@ -153,10 +176,9 @@ class StringType(BasicType):
 
     Examples:
 
-        >>> import justobjects as jo
         >>> sc = StringType(minLength=2, maxLength=16)
-        >>> jo.show_schema(sc)
-        {'type': 'string', 'minLength': 2, 'maxLength': 16}
+        >>> sc.as_dict()  # show schema
+        {'type': 'string', 'maxLength': 16, 'minLength': 2}
         >>> sc.validate("missy")  # valid
         >>> sc.validate("A")  # invalid
         Traceback (most recent call last):
@@ -175,6 +197,8 @@ class StringType(BasicType):
 
 @attr.s(auto_attribs=True)
 class DateTimeType(StringType):
+    """Date Time custom type"""
+
     format: str = attr.ib(init=False, default="data-time")
 
 
@@ -268,6 +292,18 @@ class ArrayType(BasicType):
         minItems: positive integer representing the minimum number of elements that can be on the array
         maxItems: positive integer representing the maximum number of elements that can be on the array
         uniqueItems: setting this to True, ensures only uniqueItems are found in the array
+
+    Examples:
+
+        >>> sc = StringType(enum=["one", "two", "three"])
+        >>> at = ArrayType(items=sc, uniqueItems=True)
+        >>> at.as_dict()
+        {'type': 'array', 'items': {'type': 'string', 'enum': ['one', 'two', 'three']}, 'minItems': 1, 'uniqueItems': True}
+        >>> at.validate(["one", "two", "three"])  # ok
+        >>> at.validate(["one", "one"])
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="['one', 'one'] has non-unique elements")]
     """
 
     type: SchemaDataType = attr.ib(default="array", init=False)
@@ -291,7 +327,21 @@ class CompositionType(JustSchema):
 
 @attr.s(auto_attribs=True)
 class AnyOfType(CompositionType):
-    """Json anyOf schema, entries must be valid against exactly one of the subschemas"""
+    """Json anyOf schema, entries must be valid against exactly one of the subschema
+
+    Examples:
+
+        >>> t1 = StringType(enum=["one", "two", "three"])
+        >>> t2 = IntegerType(enum=[1, 2, 3])
+        >>> aot = AnyOfType(anyOf=[t1, t2])
+        >>> aot.as_dict()
+        {'anyOf': [{'type': 'string', 'enum': ['one', 'two', 'three']}, {'enum': [1, 2, 3], 'type': 'integer'}]}
+        >>> aot.validate(4)
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='4 is not valid under any of the given schemas')]
+        >>> aot.validate("two")  # ok
+    """
 
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -331,8 +381,3 @@ class NotType(JustSchema):
 
     def get_enclosed_type(self) -> JustSchema:
         return self.mustNot
-
-
-if __name__ == "__main__":
-    pd = PropertyDict()
-    print(pd)
