@@ -1,7 +1,9 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List, Union
+from uuid import UUID
 
 import attr
-from jsonschema import Draft7Validator
+import validators
+from jsonschema import Draft7Validator, FormatChecker, FormatError
 
 
 @attr.s(frozen=True, auto_attribs=True)
@@ -48,7 +50,7 @@ def validate(schema: Dict[str, Any], instance: Any) -> None:
 
           is_valid_data(Model, {"a":4, "b":True})
     """
-    validator = Draft7Validator(schema=schema)
+    validator = Draft7Validator(schema=schema, format_checker=JustObjectFormatChecker())
 
     errors: List[ValidationError] = parse_errors(validator, instance)
     if errors:
@@ -65,3 +67,38 @@ class ValidationException(Exception):
     def __init__(self, errors: List[ValidationError]):
         super(ValidationException, self).__init__(f"Data validation error: {errors}")
         self.errors = errors
+
+
+def is_uuid(instance: Union[str, bytes]) -> bool:
+    if not isinstance(instance, (str, bytes)):
+        return False
+
+    if isinstance(instance, bytes):
+        instance = instance.decode()
+
+    return str(UUID(instance)).lower() == instance.lower()
+
+
+class JustObjectFormatChecker(FormatChecker):
+    def check(self, instance: Any, format: str):
+        if format not in CHECKER_FACTORY:
+            raise FormatError(f"Format checker for {format} format not found")
+        checker = CHECKER_FACTORY[format]
+        r, cause = None, None
+        try:
+            r = checker(instance)
+        except Exception as e:
+            cause = e
+        if not r:
+            raise FormatError(f"{instance} is not a valid {format}", cause=cause)
+        return r
+
+
+CHECKER_FACTORY = {
+    "email": validators.email,
+    "hostname": validators.domain,
+    "ipv4": validators.ipv4,
+    "ipv6": validators.ipv6,
+    "uri": validators.url,
+    "uuid": validators.uuid,
+}

@@ -79,6 +79,8 @@ def as_dict(val: Any) -> Any:
 
 @attr.s(auto_attribs=True)
 class RefType(JustSchema):
+    """Json schema ref pointer to a schema in #/definitions"""
+
     ref: str
     description: Optional[str] = None
 
@@ -219,6 +221,17 @@ class DurationType(StringType):
 
 @attr.s(auto_attribs=True)
 class EmailType(StringType):
+    """Json schema for Internet email address, see RFC 5321, section 4.1.2.
+
+    Examples:
+        >>> et = EmailType()
+        >>> et.validate("sam@peters.com")
+        >>> et.validate("as")
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='as is not a valid email')]
+    """
+
     format: str = attr.ib(init=False, default="email")
 
 
@@ -244,6 +257,19 @@ class UriType(StringType):
 
 @attr.s(auto_attribs=True)
 class UuidType(StringType):
+    """Json schema universally Unique Identifier as defined by RFC 4122.
+
+    Examples:
+        >>> ut = UuidType()
+        >>> ut.as_dict()
+        {'type': 'string', 'format': 'uuid'}
+        >>> ut.validate("3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a")  # ok
+        >>> ut.validate("asdf-sds-000-sdd")
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='asdf-sds-000-sdd is not a valid uuid')]
+    """
+
     format: str = attr.ib(init=False, default="uuid")
 
 
@@ -351,7 +377,7 @@ class AnyOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class OneOfType(CompositionType):
-    """Json oneOf schema, entries must be valid against any of the subschemas"""
+    """Json oneOf schema, entries must be valid against any of the sub-schemas"""
 
     oneOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -361,7 +387,7 @@ class OneOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class AllOfType(CompositionType):
-    """Json allOf schema, entries must be valid against all of the subschemas"""
+    """Json allOf schema, entries must be valid against all of the sub-schemas"""
 
     allOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -371,7 +397,7 @@ class AllOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class NotType(JustSchema):
-    """The not keyword declares that an instance validates if it doesn’t validate against the given subschema."""
+    """The not keyword declares that an instance validates if it doesn’t validate against the given sub-schema."""
 
     mustNot: JustSchema
     description: Optional[str] = None
