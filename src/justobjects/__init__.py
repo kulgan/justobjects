@@ -37,13 +37,8 @@ from justobjects.jsontypes import (
     UriType,
     UuidType,
 )
-from justobjects.schemas import (
-    ValidationError,
-    ValidationException,
-    show_schema,
-    validate,
-    validate_raw,
-)
+from justobjects.schemas import show_schema, validate
+from justobjects.validation import ValidationError, ValidationException
 
 VERSION = get_distribution(__name__).version
 
@@ -59,9 +54,8 @@ __all__ = [
     "one_of",
     "ref",
     "show_schema",
-    "validate",
-    "validate_raw",
     "string",
+    "validate",
     "AllOfType",
     "AnyOfType",
     "ArrayType",

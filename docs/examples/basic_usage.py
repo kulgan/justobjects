@@ -12,14 +12,28 @@ class Model:
 
 
 # display schema
-print(jo.show_schema(Model))
+print(json.dumps(jo.show_schema(Model), indent=2))
 
 
 try:
     # fails validation
     jo.validate(Model(a=3.1415, b=2.72, c="123"))
-except jo.schemas.ValidationException as err:
+except jo.ValidationException as err:
     print(err.errors)
+
+
+try:
+    # fails validation
+    jo.validate(dict(a=3.1415, b=2.72, c="123"))
+except jo.ValidationException as err:
+    print(err.errors)
+
+
+@jo.data(typed=True)
+class TypedModel:
+    a: int
+    b: float = 0.3
+    c: str = "123"
 
 
 @jo.data(typed=True)

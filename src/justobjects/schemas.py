@@ -1,6 +1,5 @@
 from collections import abc as ca
 from collections import defaultdict
-from types import MethodType
 from typing import (
     Any,
     AnyStr,
@@ -18,12 +17,12 @@ from typing import (
     Type,
     Union,
     cast,
+    overload,
 )
 
 import attr
-from jsonschema import Draft7Validator
 
-from justobjects import typings
+from justobjects import typings, validation
 from justobjects.jsontypes import (
     AnyOfType,
     ArrayType,
@@ -89,40 +88,7 @@ JO_TYPE = "__jo__type__"
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
 
-__all__ = [
-    "get_schema",
-    "transform",
-    "show_schema",
-    "validate",
-    "validate_raw",
-    "ValidationError",
-    "ValidationException",
-]
-
-
-@attr.s(frozen=True, auto_attribs=True)
-class ValidationError:
-    """Data object representation for validation errors
-
-    Attributes:
-        element (str): name of the affected column, can be empty
-        message (str): associated error message
-    """
-
-    element: str
-    message: str
-
-
-class ValidationException(Exception):
-    """Custom Exception class for validation errors
-
-    Attributes:
-        errors: list of errors encountered during validation
-    """
-
-    def __init__(self, errors: List[ValidationError]):
-        super(ValidationException, self).__init__(f"Data validation error: {errors}")
-        self.errors = errors
+__all__ = ["get_schema", "transform", "show_schema", "validate"]
 
 
 def add_schema(cls: typings.AttrClass, obj: SchemaType) -> None:
@@ -254,55 +220,27 @@ def show_schema(model: Any) -> Dict:
     raise ValueError(f"Unrecognized data object {model}")
 
 
-def parse_errors(validator: Draft7Validator, data: Dict) -> Iterable[ValidationError]:
-    errors: List[ValidationError] = []
-    for e in validator.iter_errors(data):
-        str_path = ".".join([str(entry) for entry in e.path])
-        errors.append(ValidationError(str_path, e.message))
-    return errors
+@overload
+def validate(schema: JustSchema, instance: Any) -> None:
+    ...
 
 
-def validate_raw(cls: Type[JustSchema], data: Union[Dict, Iterable[Dict]]) -> None:
-    """Validates if a data sample is valid for the given data object type
-
-    This is best suited for validating existing json data without having to creating instances of
-    the model
-
-    Args:
-        cls: data object type with schema defined
-        data: dictionary or list of data instances that needs to be validated
-    Raises:
-        ValidationException
-    Examples:
-       .. code-block:: python
-
-          import justobjects as jo
-
-          @jo.data()
-          class Model:
-            a = jo.integer(minimum=18)
-            b = jo.boolean()
-
-          is_valid_data(Model, {"a":4, "b":True})
-    """
-    schema = show_schema(cls)
-    validator = Draft7Validator(schema=schema)
-
-    errors: List[ValidationError] = []
-    if isinstance(data, dict):
-        errors += parse_errors(validator, data)
-    else:
-        for entry in data:
-            errors += parse_errors(validator, entry)
-    if errors:
-        raise ValidationException(errors=errors)
+@overload
+def validate(schema: Type, instance: Any) -> None:
+    ...
 
 
-def validate(node: Any) -> None:
+@overload
+def validate(schema: Any, instance: Any = None) -> None:
+    ...
+
+
+def validate(schema, instance=None) -> None:  # type: ignore
     """Validates an object instance against its associated json schema
 
     Args:
-        node: a data object instance
+        schema: a data object schema instance
+        instance: data object instance
     Raises:
         ValidationException: when there errors
     Examples:
@@ -315,9 +253,11 @@ def validate(node: Any) -> None:
             a = jo.integer(minimum=18)
             b = jo.boolean()
 
-          is_valid(Model(a=4, b=True)
+          jo.validate(Model(a=4, b=True)
     """
-    validate_raw(node.__class__, as_dict(node))
+    ins = instance or as_dict(schema)
+    sc = show_schema(schema)
+    validation.validate(sc, ins)
 
 
 def transform(cls: Type) -> JustSchema:

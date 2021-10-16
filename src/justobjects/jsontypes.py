@@ -1,9 +1,9 @@
 import collections
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Type
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
 
-from justobjects import typings
+from justobjects import typings, validation
 
 SchemaDataType = typings.Literal[
     "null", "array", "boolean", "object", "array", "number", "integer", "string"
@@ -31,6 +31,10 @@ class JustSchema:
         """Converts object instances to json schema"""
 
         return parse_dict(self.__dict__)
+
+    def validate(self, instance: Any) -> None:
+        schema = self.as_dict()
+        validation.validate(schema, instance)
 
 
 class PropertyDict(Dict[str, JustSchema]):
@@ -75,6 +79,8 @@ def as_dict(val: Any) -> Any:
 
 @attr.s(auto_attribs=True)
 class RefType(JustSchema):
+    """Json schema ref pointer to a schema in #/definitions"""
+
     ref: str
     description: Optional[str] = None
 
@@ -87,24 +93,49 @@ class RefType(JustSchema):
 
 @attr.s(auto_attribs=True)
 class BasicType(JustSchema):
+    """A marker type used by other types
+
+    Attributes:
+        type: jsonschema type value
+        description: text description
+    """
+
     type: SchemaDataType
     description: Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
 class BooleanType(BasicType):
+    """Json boolean type schema
+
+    Examples:
+
+        >>> bt = BooleanType(default=False)
+        >>> bt.validate(True)
+    """
+
     type: SchemaDataType = attr.ib(default="boolean", init=False)
     default: Optional[bool] = None
 
 
 def validate_positive(instance: Any, attribute: attr.Attribute, value: int) -> None:
     if value and value < 1:
-        raise ValueError(f"{attribute.name} on {instance} must be set to a positive number")
+        raise ValueError(f"{attribute.name} must be set to a positive number")
 
 
 @attr.s(auto_attribs=True)
 class NumericType(BasicType):
-    """The number type is used for any numeric type, either integers or floating point numbers."""
+    """The number type is used for any numeric type, either integers or floating point numbers.
+
+    Examples:
+
+        >>> nt = NumericType(multipleOf=6, maximum=180)
+        >>> nt.validate(36)  # ok
+        >>> NumericType(multipleOf=-1)
+        Traceback (most recent call last):
+        ...
+        ValueError: multipleOf must be set to a positive number
+    """
 
     type: SchemaDataType = attr.ib(default="number", init=False)
     default: Optional[float] = None
@@ -120,12 +151,19 @@ class NumericType(BasicType):
 class IntegerType(NumericType):
     """The integer type is used for integral numbers
 
+    Examples:
+
+        >>> it = IntegerType(maximum=200, minimum=10)
+        >>> it.validate(150)  # ok
+
     Attributes:
         type (str): static value integer
         maximum (int): maximum possible value
         minimum (int): the minimum possible value
         exclusiveMaximum (int): the maximum possible value that cannot be reached
         exclusiveMinimu (int): the minimum possible value that cannot be reached
+
+
     """
 
     type: SchemaDataType = attr.ib(default="integer", init=False)
@@ -138,7 +176,19 @@ class IntegerType(NumericType):
 
 @attr.s(auto_attribs=True)
 class StringType(BasicType):
-    """The string type is used for strings of text."""
+    """The string type is used for strings of text.
+
+    Examples:
+
+        >>> sc = StringType(minLength=2, maxLength=16)
+        >>> sc.as_dict()  # show schema
+        {'type': 'string', 'maxLength': 16, 'minLength': 2}
+        >>> sc.validate("missy")  # valid
+        >>> sc.validate("A")  # invalid
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="'A' is too short")]
+    """
 
     type: SchemaDataType = attr.ib(default="string", init=False)
     default: Optional[str] = None
@@ -151,6 +201,8 @@ class StringType(BasicType):
 
 @attr.s(auto_attribs=True)
 class DateTimeType(StringType):
+    """Date Time custom type"""
+
     format: str = attr.ib(init=False, default="data-time")
 
 
@@ -171,6 +223,17 @@ class DurationType(StringType):
 
 @attr.s(auto_attribs=True)
 class EmailType(StringType):
+    """Json schema for Internet email address, see RFC 5321, section 4.1.2.
+
+    Examples:
+        >>> et = EmailType()
+        >>> et.validate("sam@peters.com")
+        >>> et.validate("as")
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='as is not a valid email')]
+    """
+
     format: str = attr.ib(init=False, default="email")
 
 
@@ -196,6 +259,19 @@ class UriType(StringType):
 
 @attr.s(auto_attribs=True)
 class UuidType(StringType):
+    """Json schema universally Unique Identifier as defined by RFC 4122.
+
+    Examples:
+        >>> ut = UuidType()
+        >>> ut.as_dict()
+        {'type': 'string', 'format': 'uuid'}
+        >>> ut.validate("3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a")  # ok
+        >>> ut.validate("asdf-sds-000-sdd")
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='asdf-sds-000-sdd is not a valid uuid')]
+    """
+
     format: str = attr.ib(init=False, default="uuid")
 
 
@@ -235,6 +311,18 @@ class ArrayType(BasicType):
     This can be used to represent python iterables like list and set.
     NB: use of tuples is currently not supported
 
+    Examples:
+
+        >>> sc = StringType(enum=["one", "two", "three"])
+        >>> at = ArrayType(items=sc, uniqueItems=True)
+        >>> at.as_dict()
+        {'type': 'array', 'items': {'type': 'string', 'enum': ['one', 'two', 'three']}, 'minItems': 1, 'uniqueItems': True}
+        >>> at.validate(["one", "two", "three"])  # ok
+        >>> at.validate(["one", "one"])
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="['one', 'one'] has non-unique elements")]
+
     Attributes:
         type (str): static string with value 'array'
         items: Json schema for the items within the array. This schema will be used to
@@ -267,7 +355,21 @@ class CompositionType(JustSchema):
 
 @attr.s(auto_attribs=True)
 class AnyOfType(CompositionType):
-    """Json anyOf schema, entries must be valid against exactly one of the subschemas"""
+    """Json anyOf schema, entries must be valid against exactly one of the subschema
+
+    Examples:
+
+        >>> t1 = StringType(enum=["one", "two", "three"])
+        >>> t2 = IntegerType(enum=[1, 2, 3])
+        >>> aot = AnyOfType(anyOf=[t1, t2])
+        >>> aot.as_dict()
+        {'anyOf': [{'type': 'string', 'enum': ['one', 'two', 'three']}, {'enum': [1, 2, 3], 'type': 'integer'}]}
+        >>> aot.validate(4)
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='4 is not valid under any of the given schemas')]
+        >>> aot.validate("two")  # ok
+    """
 
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -277,7 +379,7 @@ class AnyOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class OneOfType(CompositionType):
-    """Json oneOf schema, entries must be valid against any of the subschemas"""
+    """Json oneOf schema, entries must be valid against any of the sub-schemas"""
 
     oneOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -287,7 +389,7 @@ class OneOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class AllOfType(CompositionType):
-    """Json allOf schema, entries must be valid against all of the subschemas"""
+    """Json allOf schema, entries must be valid against all of the sub-schemas"""
 
     allOf: Iterable[JustSchema] = attr.ib(factory=list)
 
@@ -297,7 +399,7 @@ class AllOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class NotType(JustSchema):
-    """The not keyword declares that an instance validates if it doesn’t validate against the given subschema."""
+    """The not keyword declares that an instance validates if it doesn’t validate against the given sub-schema."""
 
     mustNot: JustSchema
     description: Optional[str] = None
@@ -307,8 +409,3 @@ class NotType(JustSchema):
 
     def get_enclosed_type(self) -> JustSchema:
         return self.mustNot
-
-
-if __name__ == "__main__":
-    pd = PropertyDict()
-    print(pd)

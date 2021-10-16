@@ -49,12 +49,12 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
             import justobjects as jo
 
             @jo.data()
-            class Sample(object):
+            class Sample:
                 age = jo.integer(required=True, minimum=18)
                 name = jo.string(required=True)
 
             # show schema
-            jo.show(Sample)
+            jo.show_schema(Sample)
     """
 
     def wraps(cls: Type) -> Type:
@@ -88,6 +88,18 @@ def string(
         description: Property description
     Returns:
         a string attribute wrapper
+    Example:
+        .. code-block:: python
+
+            import justobjects as jo
+
+            @jo.data()
+            class Sample:
+                age = jo.integer(required=True, minimum=18)
+                name = jo.string(required=True, min_length=10)
+
+            # show schema
+            jo.show_schema(Sample)
     """
     sc = StringType(
         minLength=min_length,
@@ -215,7 +227,7 @@ def boolean(
         required (bool):
         description (str): summary/description
     Returns:
-        attr.ib:
+        boolean schema wrapper
     """
     sc = BooleanType(default=default, description=description)
     return attr.ib(type=bool, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})

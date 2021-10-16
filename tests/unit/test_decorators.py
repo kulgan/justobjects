@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from justobjects import schemas
+from justobjects import schemas, validation
 from tests.models import Actor, Manager, Movie, Role, Unknown
 
 
@@ -32,7 +32,7 @@ def test_validate_nested_object() -> None:
     movie = Movie(main=actor, title="T")
 
     print(json.dumps(schemas.show_schema(movie), indent=2))
-    with pytest.raises(schemas.ValidationException) as v:
+    with pytest.raises(validation.ValidationException) as v:
         schemas.validate(movie)
     assert len(v.value.errors) == 1
     error = v.value.errors[0]
