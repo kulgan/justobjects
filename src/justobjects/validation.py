@@ -82,7 +82,7 @@ def is_uuid(instance: Union[str, bytes]) -> bool:
 
 
 class JustObjectFormatChecker(FormatChecker):
-    def check(self, instance: Any, format: str):
+    def check(self, instance: Any, format: str) -> bool:
         if format not in CHECKER_FACTORY:
             raise FormatError(f"Format checker for {format} format not found")
         checker = CHECKER_FACTORY[format]
