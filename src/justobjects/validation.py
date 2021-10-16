@@ -33,11 +33,6 @@ def validate(schema: Dict[str, Any], instance: Any) -> None:
     This is best suited for validating existing json data without having to creating instances of
     the model
 
-    Args:
-        schema: data object type with schema defined
-        instance: dictionary or list of data instances that needs to be validated
-    Raises:
-        ValidationException
     Examples:
        .. code-block:: python
 
@@ -49,6 +44,13 @@ def validate(schema: Dict[str, Any], instance: Any) -> None:
             b = jo.boolean()
 
           is_valid_data(Model, {"a":4, "b":True})
+
+    Args:
+        schema: data object type with schema defined
+        instance: dictionary or list of data instances that needs to be validated
+    Raises:
+        ValidationException
+
     """
     validator = Draft7Validator(schema=schema, format_checker=JustObjectFormatChecker())
 

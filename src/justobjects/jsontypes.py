@@ -151,6 +151,11 @@ class NumericType(BasicType):
 class IntegerType(NumericType):
     """The integer type is used for integral numbers
 
+    Examples:
+
+        >>> it = IntegerType(maximum=200, minimum=10)
+        >>> it.validate(150)  # ok
+
     Attributes:
         type (str): static value integer
         maximum (int): maximum possible value
@@ -158,10 +163,7 @@ class IntegerType(NumericType):
         exclusiveMaximum (int): the maximum possible value that cannot be reached
         exclusiveMinimu (int): the minimum possible value that cannot be reached
 
-    Examples:
 
-        >>> it = IntegerType(maximum=200, minimum=10)
-        >>> it.validate(150)  # ok
     """
 
     type: SchemaDataType = attr.ib(default="integer", init=False)
@@ -309,16 +311,6 @@ class ArrayType(BasicType):
     This can be used to represent python iterables like list and set.
     NB: use of tuples is currently not supported
 
-    Attributes:
-        type (str): static string with value 'array'
-        items: Json schema for the items within the array. This schema will be used to
-            validate all of the items in the array
-        contains: Json schema used to validate items within the array, the difference with items is
-            that it only needs to validate against one or more items
-        minItems: positive integer representing the minimum number of elements that can be on the array
-        maxItems: positive integer representing the maximum number of elements that can be on the array
-        uniqueItems: setting this to True, ensures only uniqueItems are found in the array
-
     Examples:
 
         >>> sc = StringType(enum=["one", "two", "three"])
@@ -330,6 +322,16 @@ class ArrayType(BasicType):
         Traceback (most recent call last):
         ...
         justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="['one', 'one'] has non-unique elements")]
+
+    Attributes:
+        type (str): static string with value 'array'
+        items: Json schema for the items within the array. This schema will be used to
+            validate all of the items in the array
+        contains: Json schema used to validate items within the array, the difference with items is
+            that it only needs to validate against one or more items
+        minItems: positive integer representing the minimum number of elements that can be on the array
+        maxItems: positive integer representing the maximum number of elements that can be on the array
+        uniqueItems: setting this to True, ensures only uniqueItems are found in the array
     """
 
     type: SchemaDataType = attr.ib(default="array", init=False)
