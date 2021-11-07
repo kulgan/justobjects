@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Type, cast
 
 import attr
@@ -12,7 +11,6 @@ from justobjects.jsontypes import (
     IntegerType,
     NotType,
     NumericType,
-    ObjectType,
     OneOfType,
     StringType,
 )
@@ -38,11 +36,6 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
 
-    Args:
-        frozen: frozen data class
-        typed: set to True to use typings
-    Returns:
-        a JustSchema object wrapper
     Example:
         .. code-block:: python
 
@@ -55,6 +48,13 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
 
             # show schema
             jo.show_schema(Sample)
+
+    Args:
+        frozen: frozen data class
+        typed: set to True to use typings
+    Returns:
+        a JustSchema object wrapper
+
     """
 
     def wraps(cls: Type) -> Type:

@@ -36,6 +36,7 @@ from justobjects.jsontypes import (
     TimeType,
     UriType,
     UuidType,
+    as_dict,
 )
 from justobjects.schemas import show_schema, validate
 from justobjects.validation import ValidationError, ValidationException
@@ -46,6 +47,7 @@ __all__ = [
     "all_of",
     "any_of",
     "array",
+    "as_dict",
     "boolean",
     "data",
     "integer",
