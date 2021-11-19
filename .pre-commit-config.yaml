@@ -5,7 +5,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: fix-encoding-pragma
-        args: [--remove]
+        args: [ --remove ]
       - id: check-yaml
   - repo: https://github.com/psf/black
     rev: 21.9b0
