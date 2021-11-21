@@ -39,4 +39,4 @@ def test_validation() -> None:
         qn = Question(position=1, answer=Answer(value=1))
         jo.validate(qn)
     ve = v.value.errors[0]
-    assert ve.element == "answer.value"
+    assert ve.element == "value"

@@ -8,6 +8,9 @@ class Troll:
     weight = jo.numeric(required=True)
     sex = jo.string(default="male")
 
+    def __attrs_post_init__(self):
+        print(self)
+
 
 @jo.data()
 class Droll:
@@ -23,4 +26,7 @@ class Sphinx:
     weights = jo.all_of(types=(jo.NumericType, jo.IntegerType))
 
 
-print(json.dumps(jo.show_schema(Sphinx), indent=2))
+# print(json.dumps(jo.show_schema(Sphinx), indent=2))
+
+if __name__ == "__main__":
+    troll = Troll(sex="female", weight=13)
