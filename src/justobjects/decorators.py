@@ -1,5 +1,5 @@
-from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Type, cast
+from datetime import datetime
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, TypeVar, cast
 
 import attr
 
@@ -12,7 +12,6 @@ from justobjects.jsontypes import (
     IntegerType,
     NotType,
     NumericType,
-    ObjectType,
     OneOfType,
     StringType,
 )
@@ -21,6 +20,8 @@ JO_TYPE = "__jo__type__"
 JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
 JO_OBJECT_DESC = "__jo__object_desc__"
+
+T = TypeVar("T", bound="AttrClass")
 
 
 class JustData(typings.Protocol):
@@ -39,6 +40,10 @@ class AttrClass(typings.Protocol):
     def __jo_attrs_post_init__(self) -> None:
         ...
 
+    @classmethod
+    def from_dict(cls, item: Dict) -> "AttrClass":
+        ...
+
 
 def __attrs_post_init__(self: AttrClass) -> None:
     if hasattr(self, "__jo_attrs_post_init__"):
@@ -46,6 +51,34 @@ def __attrs_post_init__(self: AttrClass) -> None:
     if hasattr(self, "__jo_post_init__"):
         self.__jo_post_init__()
     schemas.validate(self)
+
+
+def __from_dict(cls: Type[AttrClass], item: Dict) -> Optional[AttrClass]:
+    if not hasattr(cls, "__attrs_attrs__"):
+        return None
+
+    for prop in cls.__attrs_attrs__:
+        if (
+            hasattr(prop.type, "__attrs_attrs__")
+            and prop.name in item
+            and isinstance(item[prop.name], dict)
+        ):
+            item[prop.name] = prop.type.from_dict(item[prop.name])
+    return cls(**item)
+
+
+def auto_convert(cls: Type, fields: List[attr.Attribute]) -> List[attr.Attribute]:
+    results = []
+    for field in fields:
+        if field.converter is not None:
+            results.append(field)
+            continue
+        if field.type in {datetime, "datetime"}:
+            converter = lambda d: datetime.fromisoformat(d) if isinstance(d, str) else d
+        else:
+            converter = None
+        results.append(field.evolve(converter=converter))
+    return results
 
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
@@ -72,10 +105,13 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """
 
     def wraps(cls: Type) -> Type:
+
         if hasattr(cls, "__attrs_post_init__"):
             setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
-        cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
+
+        cls.from_dict = classmethod(__from_dict)
+        cls = attr.s(cls, auto_attribs=typed, frozen=frozen, field_transformer=auto_convert)
         schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
 

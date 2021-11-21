@@ -53,5 +53,20 @@ def test_unknown_model() -> None:
     assert v.value
 
 
+def test_from_dict() -> None:
+    actor_data = {
+        "name": "Mr. Brown",
+        "sex": "male",
+        "age": 55,
+        "role": {"name": "Edgar Smith", "race": "black"},
+    }
+    actor = Actor.from_dict(actor_data)
+    assert actor.role.name == "Edgar Smith"
+
+    movie_data = {"main": actor_data, "title": "Space Masters"}
+    movie = Movie.from_dict(movie_data)
+    assert movie.title == "Space Masters"
+
+
 if __name__ == "__main__":
     schemas.show_schema(Manager)
