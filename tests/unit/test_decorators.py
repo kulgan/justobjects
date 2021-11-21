@@ -28,11 +28,13 @@ def test_show_nested_object_property() -> None:
 
 
 def test_validate_nested_object() -> None:
-    actor = Actor(name="Same", sex="Male", age=10, role=Role(name="Edgar Samson", race="black"))
-    movie = Movie(main=actor, title="T")
-
-    print(json.dumps(schemas.show_schema(movie), indent=2))
     with pytest.raises(validation.ValidationException) as v:
+        actor = Actor(
+            name="Same", sex="Male", age=10, role=Role(name="Edgar Samson", race="black")
+        )
+        movie = Movie(main=actor, title="T")
+
+        print(json.dumps(schemas.show_schema(movie), indent=2))
         schemas.validate(movie)
     assert len(v.value.errors) == 1
     error = v.value.errors[0]

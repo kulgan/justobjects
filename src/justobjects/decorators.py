@@ -33,6 +33,20 @@ class AttrClass(typings.Protocol):
     __name__: str
     __attrs_attrs__: Iterable[attr.Attribute]
 
+    def __jo_post_init__(self) -> None:
+        ...
+
+    def __jo_attrs_post_init__(self) -> None:
+        ...
+
+
+def __attrs_post_init__(self: AttrClass) -> None:
+    if hasattr(self, "__jo_attrs_post_init__"):
+        self.__jo_attrs_post_init__()
+    if hasattr(self, "__jo_post_init__"):
+        self.__jo_post_init__()
+    schemas.validate(self)
+
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
@@ -58,6 +72,9 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """
 
     def wraps(cls: Type) -> Type:
+        if hasattr(cls, "__attrs_post_init__"):
+            setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
+        setattr(cls, "__attrs_post_init__", __attrs_post_init__)
         cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
         schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
