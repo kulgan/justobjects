@@ -53,32 +53,26 @@ def __attrs_post_init__(self: AttrClass) -> None:
     schemas.validate(self)
 
 
-def __from_dict(cls: Type[AttrClass], item: Dict) -> Optional[AttrClass]:
+def __from_dict(cls: Type[T], item: Dict) -> T:
     if not hasattr(cls, "__attrs_attrs__"):
-        return None
+        raise ValueError(f"{cls} is not a data object")
 
     for prop in cls.__attrs_attrs__:
+        if (
+            prop.type in {datetime, "datetime"}
+            and prop.name in item
+            and isinstance(item[prop.name], datetime)
+        ):
+            item[prop.name] = datetime.fromisoformat(item[prop.name])
+
         if (
             hasattr(prop.type, "__attrs_attrs__")
             and prop.name in item
             and isinstance(item[prop.name], dict)
         ):
-            item[prop.name] = prop.type.from_dict(item[prop.name])
-    return cls(**item)
-
-
-def auto_convert(cls: Type, fields: List[attr.Attribute]) -> List[attr.Attribute]:
-    results = []
-    for field in fields:
-        if field.converter is not None:
-            results.append(field)
-            continue
-        if field.type in {datetime, "datetime"}:
-            converter = lambda d: datetime.fromisoformat(d) if isinstance(d, str) else d
-        else:
-            converter = None
-        results.append(field.evolve(converter=converter))
-    return results
+            prop_type = cast(AttrClass, prop.type)
+            item[prop.name] = prop_type.from_dict(item[prop.name])
+    return cls(**item)  # type: ignore
 
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
@@ -111,7 +105,7 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
 
         cls.from_dict = classmethod(__from_dict)
-        cls = attr.s(cls, auto_attribs=typed, frozen=frozen, field_transformer=auto_convert)
+        cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
         schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
 
