@@ -21,6 +21,7 @@ Objectives
 Similar Projects
 ----------------
 * pydantic_
+* marshmallow_
 
 Install
 -------
@@ -52,7 +53,7 @@ Usage Example
 
     try:
         # fails validation
-        jo.validate(Model(a=3.1415, b=2.72, c="123"))
+        Model(a=3.1415, b=2.72, c="123")
     except jo.schemas.ValidationException as err:
         print(err.errors)
 
@@ -74,6 +75,7 @@ Indices and tables
 * :ref:`search`
 
 .. _pydantic: https://pydantic-docs.helpmanual.io
+.. _marshmallow: https://github.com/marshmallow-code/marshmallow
 .. _jsonschema: https://json-schema.org
 .. _issues: https://github.com/kulgan/justobjects/issues
 
