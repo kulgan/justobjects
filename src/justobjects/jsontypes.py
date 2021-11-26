@@ -1,4 +1,4 @@
-import collections
+from collections import abc
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import attr
@@ -69,7 +69,7 @@ def as_dict(val: Any) -> Any:
         return val.as_dict()
     if isinstance(val, (list, set, tuple)):
         return [as_dict(v) for v in val]
-    if isinstance(val, collections.Mapping):
+    if isinstance(val, abc.Mapping):
         return parse_dict(val)
     if hasattr(val, "__dict__"):
         return parse_dict(val.__dict__)

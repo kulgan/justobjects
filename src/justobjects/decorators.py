@@ -1,9 +1,19 @@
-from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import attr
 
-from justobjects import schemas, typings
+from justobjects import schemas, transforms, typings
 from justobjects.jsontypes import (
     AllOfType,
     AnyOfType,
@@ -21,13 +31,7 @@ JO_SCHEMA = "__jo__"
 JO_REQUIRED = "__jo__required__"
 JO_OBJECT_DESC = "__jo__object_desc__"
 
-T = TypeVar("T", bound="AttrClass")
-
-
-class JustData(typings.Protocol):
-    @classmethod
-    def schema(cls) -> None:
-        ...
+T = TypeVar("T")
 
 
 class AttrClass(typings.Protocol):
@@ -53,26 +57,11 @@ def __attrs_post_init__(self: AttrClass) -> None:
     schemas.validate(self)
 
 
-def __from_dict(cls: Type[T], item: Dict) -> T:
+def __from_dict(cls: Type[transforms.JustData], item: Dict) -> transforms.JustData:
     if not hasattr(cls, "__attrs_attrs__"):
         raise ValueError(f"{cls} is not a data object")
 
-    for prop in cls.__attrs_attrs__:
-        if (
-            prop.type in {datetime, "datetime"}
-            and prop.name in item
-            and isinstance(item[prop.name], datetime)
-        ):
-            item[prop.name] = datetime.fromisoformat(item[prop.name])
-
-        if (
-            hasattr(prop.type, "__attrs_attrs__")
-            and prop.name in item
-            and isinstance(item[prop.name], dict)
-        ):
-            prop_type = cast(AttrClass, prop.type)
-            item[prop.name] = prop_type.from_dict(item[prop.name])
-    return cls(**item)  # type: ignore
+    return transforms.parse_from_dict(cls, item)
 
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
@@ -321,7 +310,7 @@ def array(
             uniqueItems=unique_items,
             description=description,
         )
-    return attr.ib(type=list, factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    return attr.ib(type=List[item], factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})  # type: ignore
 
 
 def any_of(
@@ -332,9 +321,12 @@ def any_of(
 ) -> attr.Attribute:
     """JSON schema anyOf"""
 
+    item_types = tuple(t for t in types)
     items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
     sc = AnyOfType(anyOf=items, description=description)
-    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    return attr.ib(
+        type=Union[item_types], default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required}
+    )
 
 
 def one_of(
@@ -352,9 +344,12 @@ def one_of(
     Returns:
         attr.ib: field instance
     """
+    item_types = tuple(t for t in types)
     items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
     sc = OneOfType(oneOf=items, description=description)
-    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    return attr.ib(
+        type=Union[item_types], default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required}  # type: ignore
+    )
 
 
 def all_of(
@@ -365,12 +360,17 @@ def all_of(
 ) -> attr.Attribute:
     """JSON schema allOf"""
 
+    item_types = tuple(t for t in types)
     items = [schemas.as_ref(cls, schemas.transform(cls)) for cls in types]
     sc = AllOfType(allOf=items, description=description)
-    return attr.ib(type=list, default=default, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})
+    return attr.ib(
+        type=List[Union[item_types]],  # type: ignore
+        default=default,
+        metadata={JO_SCHEMA: sc, JO_REQUIRED: required},
+    )
 
 
 def must_not(item: Type, description: Optional[str] = None) -> attr.Attribute:
     obj = schemas.as_ref(item, schemas.transform(item))
     sc = NotType(mustNot=obj, description=description)
-    return attr.ib(type=dict, default=None, metadata={JO_SCHEMA: sc})
+    return attr.ib(type=object, default=None, metadata={JO_SCHEMA: sc})
