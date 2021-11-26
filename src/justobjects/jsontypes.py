@@ -40,8 +40,8 @@ class JustSchema:
 class PropertyDict(Dict[str, JustSchema]):
     def __init__(self) -> None:
         super(PropertyDict, self).__init__()
-        # self["$id"] = StringType(default="None")  # Fails for py39+
-        self["schema"] = StringType(default="http://json-schema.org/draft-07/schema#")
+        # self["$id"] = https://justobjects.io/id
+        self["$schema"] = StringType(default="http://json-schema.org/draft-07/schema#")
 
 
 def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
@@ -54,7 +54,7 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
         if v is None:
             continue
         # map ref
-        if k in ["ref", "schema", "id"]:
+        if k in ["ref"]:
             k = f"${k}"
         dict_val = as_dict(v)
         if dict_val or isinstance(dict_val, bool):

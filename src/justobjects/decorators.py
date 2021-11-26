@@ -24,6 +24,7 @@ from justobjects.jsontypes import (
     NumericType,
     OneOfType,
     StringType,
+    as_dict,
 )
 
 JO_TYPE = "__jo__type__"
@@ -64,6 +65,10 @@ def __from_dict(cls: Type[transforms.JustData], item: Dict) -> transforms.JustDa
     return transforms.parse_from_dict(cls, item)
 
 
+def __as_dict(self: Type) -> Dict[str, Any]:
+    return as_dict(self)
+
+
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
     """decorates a class automatically binding it to a Schema instance
     This technically extends `attr.s` amd pulls out a Schema instance in the process
@@ -92,6 +97,7 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
         if hasattr(cls, "__attrs_post_init__"):
             setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
+        setattr(cls, "as_dict", __as_dict)
 
         cls.from_dict = classmethod(__from_dict)
         cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
