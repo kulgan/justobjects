@@ -64,11 +64,11 @@ def test_from_dict() -> None:
         "age": 55,
         "role": {"name": "Edgar Smith", "race": "black"},
     }
-    actor = Actor.from_dict(actor_data)
+    actor = Actor(**actor_data)
     assert actor.role.name == "Edgar Smith"
 
     movie_data = {"main": actor_data, "title": "Space Masters"}
-    movie = Movie.from_dict(movie_data)
+    movie = Movie(**movie_data)
     assert movie.title == "Space Masters"
 
     mgr = Manager(actors=[actor], movies=[movie], personal={"smith": actor})

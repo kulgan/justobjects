@@ -1,7 +1,6 @@
-from functools import partial
-from typing import Callable, Optional, Type
+from typing import Type
 
-from mypy.plugin import ClassDefContext, Plugin
+from mypy.plugin import Plugin
 from mypy.plugins import attrs
 
 attrs.attr_dataclass_makers.add("justobjects.decorators.data")

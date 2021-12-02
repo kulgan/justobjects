@@ -23,7 +23,8 @@ from typing import (
 import attr
 
 from justobjects import typings, validation
-from justobjects.jsontypes import (
+from justobjects.transforms import as_dict
+from justobjects.types import (
     AnyOfType,
     ArrayType,
     BasicType,
@@ -37,7 +38,6 @@ from justobjects.jsontypes import (
     RefType,
     SchemaType,
     StringType,
-    as_dict,
 )
 
 BOOLS = (bool, BooleanType)

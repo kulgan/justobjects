@@ -1,3 +1,4 @@
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -14,7 +15,8 @@ from typing import (
 import attr
 
 from justobjects import schemas, transforms, typings
-from justobjects.jsontypes import (
+from justobjects.transforms import as_dict
+from justobjects.types import (
     AllOfType,
     AnyOfType,
     ArrayType,
@@ -24,7 +26,6 @@ from justobjects.jsontypes import (
     NumericType,
     OneOfType,
     StringType,
-    as_dict,
 )
 
 JO_TYPE = "__jo__type__"
@@ -58,15 +59,17 @@ def __attrs_post_init__(self: AttrClass) -> None:
     schemas.validate(self)
 
 
-def __from_dict(cls: Type[transforms.JustData], item: Dict) -> transforms.JustData:
-    if not hasattr(cls, "__attrs_attrs__"):
-        raise ValueError(f"{cls} is not a data object")
-
-    return transforms.parse_from_dict(cls, item)
-
-
 def __as_dict(self: Type) -> Dict[str, Any]:
     return as_dict(self)
+
+
+def attribute_transformer(cls: Type, fields: List[attr.Attribute]) -> List[attr.Attribute]:
+    results: List[attr.Attribute] = []
+    for field in fields:
+        field_type = field.metadata.get("__jo__type__", field.type)
+        converter = partial(transforms.parse_value, field_type)
+        results.append(field.evolve(converter=converter))
+    return results
 
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
@@ -99,8 +102,9 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
         setattr(cls, "as_dict", __as_dict)
 
-        cls.from_dict = classmethod(__from_dict)
-        cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
+        cls = attr.s(
+            cls, auto_attribs=typed, frozen=frozen, field_transformer=attribute_transformer
+        )
         schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
 

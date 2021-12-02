@@ -21,7 +21,7 @@ ROLE_MANAGER = {
 
 
 def test_complex_dict() -> None:
-    rm = RoleManager.from_dict(ROLE_MANAGER)
+    rm = RoleManager(**ROLE_MANAGER)
 
     assert len(rm.roles) == 2
     for role in rm.roles:
@@ -41,7 +41,7 @@ def test_with_ref() -> None:
         "title": "valid title",
     }
 
-    movie = Movie.from_dict(data)
+    movie = Movie(**data)
     assert movie.characters == 100
     assert movie.released is False
     assert movie.main.sex == "male"
@@ -52,7 +52,7 @@ def test_with_dict() -> None:
         "main": ACTOR,
         "title": "valid title",
     }
-    mgr = Manager.from_dict({"actors": [ACTOR], "movies": [movie], "personal": {"steve": ACTOR}})
+    mgr = Manager(**{"actors": [ACTOR], "movies": [movie], "personal": {"steve": ACTOR}})
 
     assert len(mgr.actors) == 1
     assert isinstance(mgr.actors[0], Actor)
