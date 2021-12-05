@@ -144,8 +144,6 @@ def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
 def as_dict(val: Any) -> Any:
     """Attempts to recursively convert any object to a dictionary"""
 
-    # if hasattr(val, "as_dict"):
-    #     return val.as_dict()
     if isinstance(val, (list, set, tuple)):
         return [as_dict(v) for v in val]
     if isinstance(val, abc.Mapping):

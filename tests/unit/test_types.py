@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 import justobjects as jo
@@ -67,7 +69,7 @@ def test_all_of_type() -> None:
 
 
 @pytest.mark.parametrize("schema", [jo.StringType(), jo.StringType(maxLength=16)])
-def test_not_type(schema) -> None:
+def test_not_type(schema: Any) -> None:
     obj = jo.NotType(mustNot=schema)
     js = obj.as_dict()
 

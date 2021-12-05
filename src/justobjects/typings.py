@@ -2,14 +2,20 @@ import sys
 from typing import Any, Dict, Iterable, Tuple, Type
 
 if sys.version_info >= (3, 8):
-    from typing import Literal, Protocol, TypedDict  # pylint: disable=no-name-in-module
+    from typing import (  # pylint: disable=no-name-in-module
+        Final,
+        Literal,
+        Protocol,
+        TypedDict,
+    )
 else:
-    from typing_extensions import Literal, Protocol, TypedDict
+    from typing_extensions import Final, Literal, Protocol, TypedDict
 
 import attr
 
 __all__ = [
     "AttrClass",
+    "Final",
     "GenericMeta",
     "Literal",
     "Protocol",

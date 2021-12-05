@@ -38,6 +38,7 @@ from justobjects.types import (
     TimeType,
     UriType,
     UuidType,
+    cast,
 )
 from justobjects.validation import ValidationError, ValidationException
 

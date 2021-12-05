@@ -2,7 +2,7 @@ import datetime
 import decimal
 import enum
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 
 import attr
 
@@ -13,21 +13,6 @@ logger = logging.getLogger(__name__)
 SchemaDataType = typings.Literal[
     "null", "array", "boolean", "object", "array", "number", "integer", "string"
 ]
-BOOLEANS = {
-    "1": True,
-    "0": False,
-    "o": True,
-    "on": True,
-    "off": False,
-    "y": True,
-    "yes": True,
-    "n": False,
-    "no": False,
-    "t": True,
-    "true": True,
-    "f": False,
-    "false": False,
-}
 
 
 def camel_case(snake_case: str) -> str:
@@ -53,8 +38,7 @@ class JustSchema:
         return transforms.parse_dict(self.__dict__)
 
     def coerce(self, value: Any) -> Any:
-        self.validate(value)
-        return value
+        raise NotImplementedError(f"coercion not supported for {self.__class__}")
 
     def validate(self, instance: Any) -> None:
         schema = self.as_dict()
@@ -110,14 +94,8 @@ class BooleanType(BasicType):
     type: SchemaDataType = attr.ib(default="boolean", init=False)
     default: Optional[bool] = None
 
-    def coerce(self, value: Any) -> bool:
-        """Parses value as boolean"""
-
-        value = value.decode() if isinstance(value, bytes) else value
-        if value:
-            value = str(value).lower()
-            value = BOOLEANS.get(value)
-        return super().coerce(value)
+    def coerce(self, value: Any) -> Any:
+        return as_bool(value, self)
 
 
 def validate_positive(instance: Any, attribute: attr.Attribute, value: int) -> None:
@@ -148,12 +126,8 @@ class NumericType(BasicType):
     exclusiveMaximum: Optional[float] = None
     exclusiveMinimum: Optional[float] = None
 
-    def coerce(self, value: Any) -> float:
-        try:
-            value = float(value)
-        except (ValueError, TypeError) as ve:
-            logger.debug(f"Error while coercing {value} to float")
-        return super().coerce(value)
+    def coerce(self, value: Any) -> Any:
+        return as_float(value, self)
 
 
 @attr.s(auto_attribs=True)
@@ -182,12 +156,8 @@ class IntegerType(NumericType):
     exclusiveMaximum: Optional[int] = None
     exclusiveMinimum: Optional[int] = None
 
-    def coerce(self, value: Any) -> int:
-        try:
-            value = int(value)
-        except (ValueError, TypeError) as ve:
-            logger.debug(f"Error while coercing {value} to int")
-        return super().coerce(value)
+    def coerce(self, value: Any) -> Any:
+        return as_int(value, self)
 
 
 @attr.s(auto_attribs=True)
@@ -215,14 +185,8 @@ class StringType(BasicType):
     pattern: Optional[str] = None
     format: Optional[str] = None
 
-    def coerce(self, value: Any) -> str:
-        if isinstance(value, (bytes, bytearray)):
-            value = value.decode()
-        if isinstance(value, (int, float, decimal.Decimal)):
-            value = str(value)
-        if isinstance(value, enum.Enum):
-            value = value.value
-        return super().coerce(value)
+    def coerce(self, value: Any) -> Any:
+        return as_string(value, self)
 
 
 @attr.s(auto_attribs=True)
@@ -231,14 +195,13 @@ class DateTimeType(StringType):
 
     format: str = attr.ib(init=False, default="data-time")
 
-    def coerce(self, value: Any) -> datetime.datetime:
-        self.validate(value)
-        return datetime.datetime.fromisoformat(value)
-
     def validate(self, instance: Any) -> None:
         if isinstance(instance, datetime.datetime):
             instance = instance.isoformat()
         validation.validate(self.as_dict(), instance)
+
+    def coerce(self, value: Any) -> Any:
+        return as_datetime(value, self)
 
 
 @attr.s(auto_attribs=True)
@@ -297,8 +260,9 @@ class UuidType(StringType):
     """Json schema universally Unique Identifier as defined by RFC 4122.
 
         Examples:
-    import justobjects.transforms        >>> ut = UuidType()
-            >>> justobjects.transforms.as_dict()
+    import justobjects.transforms
+            >>> ut = UuidType()
+            >>> transforms.as_dict()
             {'type': 'string', 'format': 'uuid'}
             >>> ut.validate("3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a")  # ok
             >>> ut.validate("asdf-sds-000-sdd")
@@ -348,9 +312,10 @@ class ArrayType(BasicType):
 
         Examples:
 
-    import justobjects.transforms        >>> sc = StringType(enum=["one", "two", "three"])
+    import justobjects.transforms
+            >>> sc = StringType(enum=["one", "two", "three"])
             >>> at = ArrayType(items=sc, uniqueItems=True)
-            >>> justobjects.transforms.as_dict()
+            >>> transforms.as_dict()
             {'type': 'array', 'items': {'type': 'string', 'enum': ['one', 'two', 'three']}, 'minItems': 1, 'uniqueItems': True}
             >>> at.validate(["one", "two", "three"])  # ok
             >>> at.validate(["one", "one"])
@@ -394,10 +359,11 @@ class AnyOfType(CompositionType):
 
         Examples:
 
-    import justobjects.transforms        >>> t1 = StringType(enum=["one", "two", "three"])
+    import justobjects.transforms
+            >>> t1 = StringType(enum=["one", "two", "three"])
             >>> t2 = IntegerType(enum=[1, 2, 3])
             >>> aot = AnyOfType(anyOf=[t1, t2])
-            >>> justobjects.transforms.as_dict()
+            >>> transforms.as_dict()
             {'anyOf': [{'type': 'string', 'enum': ['one', 'two', 'three']}, {'enum': [1, 2, 3], 'type': 'integer'}]}
             >>> aot.validate(4)
             Traceback (most recent call last):
@@ -434,7 +400,8 @@ class AllOfType(CompositionType):
 
 @attr.s(auto_attribs=True)
 class NotType(JustSchema):
-    """The not keyword declares that an instance validates if it doesn’t validate against the given sub-schema."""
+    """The not keyword declares that an instance validates if it doesn’t validate against the
+    given sub-schema."""
 
     mustNot: JustSchema
     description: Optional[str] = None
@@ -444,3 +411,108 @@ class NotType(JustSchema):
 
     def get_enclosed_type(self) -> JustSchema:
         return self.mustNot
+
+
+BOOLEANS = {
+    "1": True,
+    "0": False,
+    "o": True,
+    "on": True,
+    "off": False,
+    "y": True,
+    "yes": True,
+    "n": False,
+    "no": False,
+    "t": True,
+    "true": True,
+    "f": False,
+    "false": False,
+}
+
+S = TypeVar("S", bound=JustSchema, contravariant=True)
+
+
+class Converter(typings.Protocol[S]):
+    def __call__(
+        self, value: Any, schema: Optional[S] = None
+    ) -> Union[bool, float, int, str, datetime.datetime, Iterable]:
+        ...
+
+
+def as_array(value: Iterable, schema: Optional[ArrayType] = None) -> Iterable:
+    schema = schema or ArrayType(items=StringType())
+    return [cast(v, schema.items) for v in value]
+
+
+def as_bool(value: Any, schema: Optional[BooleanType] = None) -> bool:
+    """Parses value as boolean"""
+
+    schema = schema or BooleanType()
+    value = value.decode() if isinstance(value, bytes) else value
+    if value:
+        value = str(value).lower()
+        value = BOOLEANS.get(value)
+    validation.validate(schema.as_dict(), value)
+    return value
+
+
+def as_datetime(value: Any, schema: Optional[DateTimeType] = None) -> datetime.datetime:
+    schema = schema or DateTimeType()
+    if isinstance(value, datetime.datetime):
+        value = value.isoformat()
+    validation.validate(schema.as_dict(), value)
+    return datetime.datetime.fromisoformat(value)
+
+
+def as_float(value: Any, schema: Optional[NumericType] = None) -> float:
+    schema = schema or NumericType()
+    try:
+        value = float(value)
+    except (ValueError, TypeError) as ve:
+        logger.debug(f"Error while coercing {value} to float")
+    validation.validate(schema.as_dict(), value)
+    return value
+
+
+def as_int(value: Any, schema: Optional[IntegerType] = None) -> int:
+
+    schema = schema or IntegerType()
+    try:
+        value = int(value)
+    except (ValueError, TypeError) as ve:
+        logger.debug(f"Error while coercing {value} to int")
+    validation.validate(schema.as_dict(), value)
+    return value
+
+
+def as_string(value: Any, schema: Optional[StringType] = None) -> str:
+
+    schema = schema or StringType()
+    if isinstance(value, (bytes, bytearray)):
+        value = value.decode()
+    if isinstance(value, (int, float, decimal.Decimal)):
+        value = str(value)
+    if isinstance(value, enum.Enum):
+        value = value.value
+    validation.validate(schema.as_dict(), value)
+    return value
+
+
+def cast(data: Any, schema: JustSchema) -> Any:
+    converter = CONVERTERS.get(schema.__class__.__name__)
+    if not converter:
+        raise ValueError(f"Unknown converter for schema {schema}")
+    return converter(data, schema)
+
+
+CONVERTERS: Dict[str, Converter] = {
+    "ArrayType": as_array,
+    "BooleanType": as_bool,
+    "DateTimeType": as_datetime,
+    "EmailType": as_string,
+    "HostnameType": as_string,
+    "IntegerType": as_int,
+    "NumericType": as_float,
+    "StringType": as_string,
+    "UuidType": as_string,
+}

@@ -1,3 +1,4 @@
+import abc
 from functools import partial
 from typing import (
     Any,
@@ -36,9 +37,9 @@ JO_OBJECT_DESC = "__jo__object_desc__"
 T = TypeVar("T")
 
 
-class AttrClass(typings.Protocol):
-    __name__: str
-    __attrs_attrs__: Iterable[attr.Attribute]
+class JustObject(abc.ABC):
+    # __name__: str
+    # __attrs_attrs__: Iterable[attr.Attribute]
 
     def __jo_post_init__(self) -> None:
         ...
@@ -46,12 +47,17 @@ class AttrClass(typings.Protocol):
     def __jo_attrs_post_init__(self) -> None:
         ...
 
+    def __attrs_post_init__(self) -> None:
+        self.__jo_attrs_post_init__()
+        self.__jo_post_init__()
+        schemas.validate(self)
+
     @classmethod
-    def from_dict(cls, item: Dict) -> "AttrClass":
+    def from_dict(cls, item: Dict) -> "JustObject":
         ...
 
 
-def __attrs_post_init__(self: AttrClass) -> None:
+def __attrs_post_init__(self: JustObject) -> None:
     if hasattr(self, "__jo_attrs_post_init__"):
         self.__jo_attrs_post_init__()
     if hasattr(self, "__jo_post_init__"):
@@ -97,10 +103,12 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
 
     def wraps(cls: Type) -> Type:
 
-        if hasattr(cls, "__attrs_post_init__"):
-            setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
-        setattr(cls, "__attrs_post_init__", __attrs_post_init__)
-        setattr(cls, "as_dict", __as_dict)
+        # if hasattr(cls, "__attrs_post_init__"):
+        #     setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
+        # setattr(cls, "__attrs_post_init__", __attrs_post_init__)
+        # setattr(cls, "as_dict", __as_dict)
+        # cls.__bases__ = (JustObject, object )
+        # cls = type(cls.__name__, (JustObject,), dict(cls.__dict__))
 
         cls = attr.s(
             cls, auto_attribs=typed, frozen=frozen, field_transformer=attribute_transformer
