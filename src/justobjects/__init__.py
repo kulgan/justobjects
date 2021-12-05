@@ -50,6 +50,7 @@ __all__ = [
     "array",
     "as_dict",
     "boolean",
+    "cast",
     "data",
     "integer",
     "must_not",

@@ -37,9 +37,9 @@ JO_OBJECT_DESC = "__jo__object_desc__"
 T = TypeVar("T")
 
 
-class JustObject(abc.ABC):
-    # __name__: str
-    # __attrs_attrs__: Iterable[attr.Attribute]
+class JustObject(typings.Protocol):
+    __name__: str
+    __attrs_attrs__: Iterable[attr.Attribute]
 
     def __jo_post_init__(self) -> None:
         ...
@@ -48,9 +48,7 @@ class JustObject(abc.ABC):
         ...
 
     def __attrs_post_init__(self) -> None:
-        self.__jo_attrs_post_init__()
-        self.__jo_post_init__()
-        schemas.validate(self)
+        ...
 
     @classmethod
     def from_dict(cls, item: Dict) -> "JustObject":
@@ -107,8 +105,6 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
             setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
         setattr(cls, "as_dict", __as_dict)
-        # cls.__bases__ = (JustObject, object )
-        # cls = type(cls.__name__, (JustObject,), dict(cls.__dict__))
 
         cls = attr.s(
             cls, auto_attribs=typed, frozen=frozen, field_transformer=attribute_transformer
@@ -211,9 +207,11 @@ def numeric(
         default: default value used for instances
         minimum: a number denoting the minimum allowed value for instances
         maximum: a number denoting the maximum allowed value for instances
-        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        multiple_of: must be a positive value, restricts values to be multiples of the given
+                    number
         exclusive_max: a number denoting maximum allowed value should be less that the given value
-        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given
+                    value
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
@@ -248,9 +246,11 @@ def integer(
         default: default value used for instances
         minimum: a number denoting the minimum allowed value for instances
         maximum: a number denoting the maximum allowed value for instances
-        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        multiple_of: must be a positive value, restricts values to be multiples of the given
+                    number
         exclusive_max: a number denoting maximum allowed value should be less that the given value
-        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given
+                    value
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
@@ -303,8 +303,10 @@ def array(
     Args:
         item: data object class type used as items in the array
         contains: schema only needs to validate against one or more items in the array.
-        min_items: positive integer representing the minimum number of items that can be on the array
-        max_items: positive integer representing the maximum number of items that can be on the array
+        min_items: positive integer representing the minimum number of items that can be on
+                    the array
+        max_items: positive integer representing the maximum number of items that can be on
+                    the array
         required: True if field is required
         unique_items: disallow duplicates
         description: field description
@@ -328,7 +330,11 @@ def array(
             uniqueItems=unique_items,
             description=description,
         )
-    return attr.ib(type=List[item], factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})  # type: ignore
+    return attr.ib(
+        type=List[item],  # type: ignore
+        factory=list,
+        metadata={JO_SCHEMA: sc, JO_REQUIRED: required},
+    )
 
 
 def any_of(

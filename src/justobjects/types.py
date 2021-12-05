@@ -2,7 +2,7 @@ import datetime
 import decimal
 import enum
 import logging
-from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, Union
 
 import attr
 
@@ -164,17 +164,16 @@ class IntegerType(NumericType):
 class StringType(BasicType):
     """The string type is used for strings of text.
 
-        Examples:
+    Examples:
 
-    import justobjects.transforms
-            >>> sc = StringType(minLength=2, maxLength=16)
-            >>> transforms.as_dict()  # show schema
-            {'type': 'string', 'maxLength': 16, 'minLength': 2}
-            >>> sc.validate("missy")  # valid
-            >>> sc.validate("A")  # invalid
-            Traceback (most recent call last):
-            ...
-            justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="'A' is too short")]
+        >>> sc = StringType(minLength=2, maxLength=16)
+        >>> transforms.as_dict()  # show schema
+        {'type': 'string', 'maxLength': 16, 'minLength': 2}
+        >>> sc.validate("missy")  # valid
+        >>> sc.validate("A")  # invalid
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="'A' is too short")]
     """
 
     type: SchemaDataType = attr.ib(default="string", init=False)
@@ -259,16 +258,15 @@ class UriType(StringType):
 class UuidType(StringType):
     """Json schema universally Unique Identifier as defined by RFC 4122.
 
-        Examples:
-    import justobjects.transforms
-            >>> ut = UuidType()
-            >>> transforms.as_dict()
-            {'type': 'string', 'format': 'uuid'}
-            >>> ut.validate("3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a")  # ok
-            >>> ut.validate("asdf-sds-000-sdd")
-            Traceback (most recent call last):
-            ...
-            justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='asdf-sds-000-sdd is not a valid uuid')]
+    Examples:
+        >>> ut = UuidType()
+        >>> transforms.as_dict()
+        {'type': 'string', 'format': 'uuid'}
+        >>> ut.validate("3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a")  # ok
+        >>> ut.validate("asdf-sds-000-sdd")
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='asdf-sds-000-sdd is not a valid uuid')]
     """
 
     format: str = attr.ib(init=False, default="uuid")
@@ -307,31 +305,30 @@ class SchemaType(ObjectType):
 class ArrayType(BasicType):
     """Json schema array type object.
 
-        This can be used to represent python iterables like list and set.
-        NB: use of tuples is currently not supported
+    This can be used to represent python iterables like list and set.
+    NB: use of tuples is currently not supported
 
-        Examples:
+    Examples:
 
-    import justobjects.transforms
-            >>> sc = StringType(enum=["one", "two", "three"])
-            >>> at = ArrayType(items=sc, uniqueItems=True)
-            >>> transforms.as_dict()
-            {'type': 'array', 'items': {'type': 'string', 'enum': ['one', 'two', 'three']}, 'minItems': 1, 'uniqueItems': True}
-            >>> at.validate(["one", "two", "three"])  # ok
-            >>> at.validate(["one", "one"])
-            Traceback (most recent call last):
-            ...
-            justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="['one', 'one'] has non-unique elements")]
+        >>> sc = StringType(enum=["one", "two", "three"])
+        >>> at = ArrayType(items=sc, uniqueItems=True)
+        >>> transforms.as_dict()
+        {'type': 'array', 'items': {'type': 'string', 'enum': ['one', 'two', 'three']}, 'minItems': 1, 'uniqueItems': True}
+        >>> at.validate(["one", "two", "three"])  # ok
+        >>> at.validate(["one", "one"])
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message="['one', 'one'] has non-unique elements")]
 
-        Attributes:
-            type (str): static string with value 'array'
-            items: Json schema for the items within the array. This schema will be used to
-                validate all of the items in the array
-            contains: Json schema used to validate items within the array, the difference with items is
-                that it only needs to validate against one or more items
-            minItems: positive integer representing the minimum number of elements that can be on the array
-            maxItems: positive integer representing the maximum number of elements that can be on the array
-            uniqueItems: setting this to True, ensures only uniqueItems are found in the array
+    Attributes:
+        type (str): static string with value 'array'
+        items: Json schema for the items within the array. This schema will be used to
+            validate all of the items in the array
+        contains: Json schema used to validate items within the array, the difference with items is
+            that it only needs to validate against one or more items
+        minItems: positive integer representing the minimum number of elements that can be on the array
+        maxItems: positive integer representing the maximum number of elements that can be on the array
+        uniqueItems: setting this to True, ensures only uniqueItems are found in the array
     """
 
     type: SchemaDataType = attr.ib(default="array", init=False)
@@ -357,19 +354,18 @@ class CompositionType(JustSchema):
 class AnyOfType(CompositionType):
     """Json anyOf schema, entries must be valid against exactly one of the subschema
 
-        Examples:
+    Examples:
 
-    import justobjects.transforms
-            >>> t1 = StringType(enum=["one", "two", "three"])
-            >>> t2 = IntegerType(enum=[1, 2, 3])
-            >>> aot = AnyOfType(anyOf=[t1, t2])
-            >>> transforms.as_dict()
-            {'anyOf': [{'type': 'string', 'enum': ['one', 'two', 'three']}, {'enum': [1, 2, 3], 'type': 'integer'}]}
-            >>> aot.validate(4)
-            Traceback (most recent call last):
-            ...
-            justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='4 is not valid under any of the given schemas')]
-            >>> aot.validate("two")  # ok
+        >>> t1 = StringType(enum=["one", "two", "three"])
+        >>> t2 = IntegerType(enum=[1, 2, 3])
+        >>> aot = AnyOfType(anyOf=[t1, t2])
+        >>> transforms.as_dict()
+        {'anyOf': [{'type': 'string', 'enum': ['one', 'two', 'three']}, {'enum': [1, 2, 3], 'type': 'integer'}]}
+        >>> aot.validate(4)
+        Traceback (most recent call last):
+        ...
+        justobjects.validation.ValidationException: Data validation error: [ValidationError(element='', message='4 is not valid under any of the given schemas')]
+        >>> aot.validate("two")  # ok
     """
 
     anyOf: Iterable[JustSchema] = attr.ib(factory=list)
