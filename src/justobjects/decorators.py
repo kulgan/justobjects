@@ -103,10 +103,10 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
 
     def wraps(cls: Type) -> Type:
 
-        # if hasattr(cls, "__attrs_post_init__"):
-        #     setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
-        # setattr(cls, "__attrs_post_init__", __attrs_post_init__)
-        # setattr(cls, "as_dict", __as_dict)
+        if hasattr(cls, "__attrs_post_init__"):
+            setattr(cls, "__jo_attrs_post_init__", cls.__attrs_post_init__)
+        setattr(cls, "__attrs_post_init__", __attrs_post_init__)
+        setattr(cls, "as_dict", __as_dict)
         # cls.__bases__ = (JustObject, object )
         # cls = type(cls.__name__, (JustObject,), dict(cls.__dict__))
 
