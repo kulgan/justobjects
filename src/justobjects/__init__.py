@@ -13,7 +13,9 @@ from justobjects.decorators import (
     ref,
     string,
 )
-from justobjects.jsontypes import (
+from justobjects.schemas import show_schema, validate
+from justobjects.transforms import as_dict
+from justobjects.types import (
     AllOfType,
     AnyOfType,
     ArrayType,
@@ -36,8 +38,8 @@ from justobjects.jsontypes import (
     TimeType,
     UriType,
     UuidType,
+    cast,
 )
-from justobjects.schemas import show_schema, validate
 from justobjects.validation import ValidationError, ValidationException
 
 VERSION = get_distribution(__name__).version
@@ -46,7 +48,9 @@ __all__ = [
     "all_of",
     "any_of",
     "array",
+    "as_dict",
     "boolean",
+    "cast",
     "data",
     "integer",
     "must_not",

@@ -1,3 +1,5 @@
+import abc
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -14,7 +16,8 @@ from typing import (
 import attr
 
 from justobjects import schemas, transforms, typings
-from justobjects.jsontypes import (
+from justobjects.transforms import as_dict
+from justobjects.types import (
     AllOfType,
     AnyOfType,
     ArrayType,
@@ -24,7 +27,6 @@ from justobjects.jsontypes import (
     NumericType,
     OneOfType,
     StringType,
-    as_dict,
 )
 
 JO_TYPE = "__jo__type__"
@@ -35,7 +37,7 @@ JO_OBJECT_DESC = "__jo__object_desc__"
 T = TypeVar("T")
 
 
-class AttrClass(typings.Protocol):
+class JustObject(typings.Protocol):
     __name__: str
     __attrs_attrs__: Iterable[attr.Attribute]
 
@@ -45,12 +47,15 @@ class AttrClass(typings.Protocol):
     def __jo_attrs_post_init__(self) -> None:
         ...
 
+    def __attrs_post_init__(self) -> None:
+        ...
+
     @classmethod
-    def from_dict(cls, item: Dict) -> "AttrClass":
+    def from_dict(cls, item: Dict) -> "JustObject":
         ...
 
 
-def __attrs_post_init__(self: AttrClass) -> None:
+def __attrs_post_init__(self: JustObject) -> None:
     if hasattr(self, "__jo_attrs_post_init__"):
         self.__jo_attrs_post_init__()
     if hasattr(self, "__jo_post_init__"):
@@ -58,15 +63,17 @@ def __attrs_post_init__(self: AttrClass) -> None:
     schemas.validate(self)
 
 
-def __from_dict(cls: Type[transforms.JustData], item: Dict) -> transforms.JustData:
-    if not hasattr(cls, "__attrs_attrs__"):
-        raise ValueError(f"{cls} is not a data object")
-
-    return transforms.parse_from_dict(cls, item)
-
-
 def __as_dict(self: Type) -> Dict[str, Any]:
     return as_dict(self)
+
+
+def attribute_transformer(cls: Type, fields: List[attr.Attribute]) -> List[attr.Attribute]:
+    results: List[attr.Attribute] = []
+    for field in fields:
+        field_type = field.metadata.get("__jo__type__", field.type)
+        converter = partial(transforms.parse_value, field_type)
+        results.append(field.evolve(converter=converter))
+    return results
 
 
 def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
@@ -99,8 +106,9 @@ def data(frozen: bool = True, typed: bool = False) -> Callable[[Type], Type]:
         setattr(cls, "__attrs_post_init__", __attrs_post_init__)
         setattr(cls, "as_dict", __as_dict)
 
-        cls.from_dict = classmethod(__from_dict)
-        cls = attr.s(cls, auto_attribs=typed, frozen=frozen)
+        cls = attr.s(
+            cls, auto_attribs=typed, frozen=frozen, field_transformer=attribute_transformer
+        )
         schemas.transform_properties(cast(typings.AttrClass, cls))
         return cls
 
@@ -199,9 +207,11 @@ def numeric(
         default: default value used for instances
         minimum: a number denoting the minimum allowed value for instances
         maximum: a number denoting the maximum allowed value for instances
-        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        multiple_of: must be a positive value, restricts values to be multiples of the given
+                    number
         exclusive_max: a number denoting maximum allowed value should be less that the given value
-        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given
+                    value
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
@@ -236,9 +246,11 @@ def integer(
         default: default value used for instances
         minimum: a number denoting the minimum allowed value for instances
         maximum: a number denoting the maximum allowed value for instances
-        multiple_of: must be a positive value, restricts values to be multiples of the given number
+        multiple_of: must be a positive value, restricts values to be multiples of the given
+                    number
         exclusive_max: a number denoting maximum allowed value should be less that the given value
-        exclusive_min: a number denoting minimum allowed value should be greater that the given value
+        exclusive_min: a number denoting minimum allowed value should be greater that the given
+                    value
         required: True if field should be a required field
         description: Comments describing the field
     Returns:
@@ -291,8 +303,10 @@ def array(
     Args:
         item: data object class type used as items in the array
         contains: schema only needs to validate against one or more items in the array.
-        min_items: positive integer representing the minimum number of items that can be on the array
-        max_items: positive integer representing the maximum number of items that can be on the array
+        min_items: positive integer representing the minimum number of items that can be on
+                    the array
+        max_items: positive integer representing the maximum number of items that can be on
+                    the array
         required: True if field is required
         unique_items: disallow duplicates
         description: field description
@@ -316,7 +330,11 @@ def array(
             uniqueItems=unique_items,
             description=description,
         )
-    return attr.ib(type=List[item], factory=list, metadata={JO_SCHEMA: sc, JO_REQUIRED: required})  # type: ignore
+    return attr.ib(
+        type=List[item],  # type: ignore
+        factory=list,
+        metadata={JO_SCHEMA: sc, JO_REQUIRED: required},
+    )
 
 
 def any_of(

@@ -38,3 +38,5 @@ disallow_untyped_calls = true
 strict_optional = true
 no_implicit_optional = true
 check_untyped_defs = true
+
+plugins = "justobjects.plugins.jomypy"

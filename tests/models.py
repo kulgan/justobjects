@@ -40,7 +40,7 @@ class Movie:
 
 @jo.data(typed=True)
 class Manager:
-    actors: Iterable[Actor]
+    actors: List[Actor]
     movies: List[Movie]
     personal: Dict[str, Actor]
 

@@ -121,3 +121,34 @@ def parse_from_dict(cls: Type[JustData], data: Dict) -> JustData:
         data[prop.name] = parse_value(prop_type, prop_value)
 
     return cls(**data)  # type: ignore
+
+
+def parse_dict(val: Mapping[str, Any]) -> Dict[str, Any]:
+    parsed = {}
+    for k, v in val.items():
+        if k.startswith("__"):
+            # skip private properties
+            continue
+        # skip None values
+        if v is None:
+            continue
+        # map ref
+        if k in ["ref"]:
+            k = f"${k}"
+        dict_val = as_dict(v)
+        if dict_val or isinstance(dict_val, bool):
+            parsed[k] = dict_val
+    return parsed
+
+
+def as_dict(val: Any) -> Any:
+    """Attempts to recursively convert any object to a dictionary"""
+
+    if isinstance(val, (list, set, tuple)):
+        return [as_dict(v) for v in val]
+    if isinstance(val, abc.Mapping):
+        return parse_dict(val)
+    if hasattr(val, "__dict__"):
+        return parse_dict(val.__dict__)
+
+    return val
